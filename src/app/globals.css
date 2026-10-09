@@ -101,6 +101,8 @@ main{display:grid;gap:14px;grid-template-columns:540px minmax(0,1fr) 600px;min-h
 .jobs{display:flex;flex-direction:column;gap:7px;min-height:0;flex:1}
 .job{display:grid;grid-template-columns:40px 72px minmax(0,1fr) auto;column-gap:12px;row-gap:2px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 12px}
 .job.flag-issue{border-color:var(--red);box-shadow:inset 4px 0 0 var(--red)}
+.job{box-shadow:inset 6px 0 0 var(--crew,transparent);padding-left:16px}
+.job.flag-issue{box-shadow:inset 6px 0 0 var(--crew,var(--red))}
 .num{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:1.05em;color:var(--pin-text);grid-row:span 2}
 .num.s-progress{background:var(--warning)} .num.s-scheduled{background:var(--navy)} .num.s-issue{background:var(--red)} .num.s-done{background:var(--success)} .num.s-postponed{background:var(--ink-muted)}
 .job .t{font-family:var(--display);font-weight:700;font-size:1.25em;grid-row:span 2;white-space:nowrap}
@@ -187,3 +189,8 @@ footer .src.stale{color:var(--red);font-weight:600}
   @keyframes gpulse{50%{stroke-width:4.5}}
 }
 .gmap .attribution{font:400 7px var(--body);fill:#333;paint-order:stroke;stroke:rgba(255,255,255,.85);stroke-width:2.5px}
+.crew-dot{display:inline-block;width:.72em;height:.72em;border-radius:50%;margin-right:5px;vertical-align:0}
+.legend .ring{background:transparent;border:3px solid}
+.pin .crew-ring{stroke:none}
+.gmap .pin .crew-ring{filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.45))}
+.gmap .pin circle:not(.crew-ring){filter:none}

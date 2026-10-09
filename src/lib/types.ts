@@ -78,6 +78,7 @@ export interface ReadyRow {
   customer: string;
   city: string;
   crew: string; // short crew name, e.g. "Crew 2" or "Bira"
+  crewName: string; // full calendar name, e.g. "Crew 2 · Jorge"
   deposit: Check;
   permit: Check;
   material: Check;

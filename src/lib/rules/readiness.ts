@@ -24,6 +24,7 @@ export function readyRows(jobs: Job[]): ReadyRow[] {
       customer: j.customer,
       city: j.city,
       crew: crewShort(j.crew),
+      crewName: j.crew,
       deposit: j.deposit,
       permit: j.permit,
       material: j.material,
