@@ -17,7 +17,7 @@ Requires Node 20 or later.
 ```sh
 npm install
 npm run dev        # http://localhost:3000
-npm test           # unit tests (alert rules, readiness)
+npm test           # unit tests (event parser, alert rules, readiness)
 npm run typecheck
 npm run build
 ```
@@ -28,6 +28,7 @@ npm run build
 | `src/app/api/board/route.ts` | `GET /api/board`: the only endpoint the browser calls |
 | `src/lib/board.ts` | Builds the `Board` payload from the sources and rules |
 | `src/lib/sources/` | `ScheduleSource` / `WeatherSource` interfaces and the sample implementation |
+| `src/lib/parse/event.ts` | Google Calendar event → `Job` or `Visit`, per the calendar convention (spec §6) |
 | `src/lib/rules/alerts.ts` | Alert rules (spec §7) |
 | `src/lib/rules/readiness.ts` | Next workday and ready-check rows |
 | `src/components/` | Screen components; styles in `src/app/globals.css` are copied from the prototype |

@@ -137,7 +137,7 @@ export function buildAlerts({ today, nextWorkday, hourly }: AlertInput): Alert[]
       add(job, {
         severity: "warning",
         label: "Calendar",
-        title: `${name}: ${lowerFirst(job.parseWarnings.join("; "))}`,
+        title: `${name}: ${job.parseWarnings.map(lowerFirst).join("; ")}`,
         text: "Fix the event so the board can read it.",
       });
     }

@@ -202,7 +202,7 @@ describe("Calendar", () => {
       {
         severity: "warning",
         label: "Calendar",
-        title: "#2 Brennan: no address; Deposit status not found",
+        title: "#2 Brennan: no address; deposit status not found",
         text: "Fix the event so the board can read it.",
         jobId: j.id,
       },
