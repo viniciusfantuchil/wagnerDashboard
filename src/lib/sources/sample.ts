@@ -95,6 +95,11 @@ export class SampleScheduleSource implements ScheduleSource {
     return { jobs: [], visits: [] };
   }
 
+  async getJobs(from: string, to: string): Promise<Job[]> {
+    const days = [this.today, nextWorkday(this.today)].filter((d) => d >= from && d <= to);
+    return (await Promise.all(days.map((d) => this.getDay(d)))).flatMap((d) => d.jobs);
+  }
+
   async getBookedThrough(): Promise<string | null> {
     return "early Dec.";
   }

@@ -60,13 +60,15 @@ Job and visit addresses are placed on the map on the server, with the free **US 
 
 ## Control screen (update job status)
 
-`/control` is a phone screen where the office and the crew leads update jobs. Each change is written to the job's Google Calendar event, so the calendar stays the single source and the TV updates within 5 minutes.
+`/control` is a screen for phones and computers where the office and the crew leads update jobs. Each change is written to the job's Google Calendar event, so the calendar stays the single source and the TV updates within 5 minutes.
 
 | Role | Can change |
 |---|---|
 | Admin | Everything an office user can, plus adding, changing and removing users at `/control/users` |
 | Office | Status, Deposit, Permit, Material, 48-hour confirmation and Note, on every crew's jobs |
 | Crew lead | Status and Note, on their own crew's jobs |
+
+**Search.** The search bar finds jobs by customer, city, service, crew or note (every word must match; accents and case don't matter). It looks at the next 180 days by default, or the past 180 days, or both. Filters narrow the list by crew, status or a readiness item that is still pending (office only; an unknown deposit counts as pending, D-003). Each result is the same card, so a job can be updated from the search. On a computer, `/` jumps to the search bar and the cards sit side by side. Crew leads see only their own crew's jobs.
 
 **Sign-in.** People sign in at `https://<board url>/control` with a username and password.
 - A device stays signed in for 30 days. **Sign out** ends the session and asks the browser to clear the site's cache and storage.
