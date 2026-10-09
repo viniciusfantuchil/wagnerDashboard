@@ -272,7 +272,16 @@ footer .src.stale{color:var(--red);font-weight:600}
   .control-search{flex-wrap:nowrap;align-items:center;position:sticky;top:68px;z-index:1;margin:0 -4px;padding:12px 4px;background:var(--surface-subtle)}
   .control-search input{flex:1 1 auto}
   .control-search select{flex:0 0 auto;width:auto}
-  .cjobs{grid-template-columns:repeat(auto-fill,minmax(360px,1fr));align-items:start}
+  /* Cards in a row share one height; the action buttons sit on the bottom edge so they line up across the row. */
+  .cjobs{grid-template-columns:repeat(auto-fill,minmax(360px,1fr));align-items:stretch}
+  .cjobs .cjob{height:100%;box-sizing:border-box}
+  .cjob>.cjob-quick{margin-top:auto}
+  /* The editor and the Issue panel float over the cards below, so opening one card doesn't stretch its row. */
+  .cjobs .cjob{position:relative}
+  .cjobs .cjob.raised{z-index:3;box-shadow:0 8px 28px rgba(0,0,0,.18)}
+  .cjobs .cjob>.cjob-edit,.cjobs .cjob>.cjob-stop{position:absolute;left:-1px;right:-1px;top:calc(100% - 8px);padding:14px 12px 12px;background:var(--surface);border:1px solid var(--border);border-top:0;border-radius:0 0 8px 8px;box-shadow:0 14px 28px rgba(0,0,0,.18)}
+  .cjobs .cjob>.cjob-stop{background:var(--red-tint)}
+  .cjobs .cjob>.cjob-edit{border-top:1px solid var(--border)}
   .control-day h2{margin-top:16px}
 }
 
@@ -309,6 +318,7 @@ footer .src.stale{color:var(--red);font-weight:600}
 .q-done{background:var(--success)}
 .q-resume{background:var(--warning)}
 .q-stop{flex:0 0 auto;padding:0 18px;background:var(--surface)!important;color:var(--red);border:2px solid var(--red)!important}
+.q-stop.active{background:var(--red-tint)!important}
 .q-stop.on{flex:1;background:var(--red)!important;color:var(--on-solid)}
 .q-cancel{flex:0 0 auto;padding:0 18px;background:var(--surface);color:var(--ink);border:1px solid var(--border-strong)!important}
 .cjob-stop{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:8px;background:var(--red-tint)}

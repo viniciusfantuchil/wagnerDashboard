@@ -111,7 +111,7 @@ function JobCard({
   };
 
   return (
-    <article className={`cjob${open ? " open" : ""}`} style={{ borderLeftColor: job.color ?? "var(--border)" }}>
+    <article className={`cjob${open ? " open" : ""}${open || stopping ? " raised" : ""}`} style={{ borderLeftColor: job.color ?? "var(--border)" }}>
       <button type="button" className="cjob-sum" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <span className="cjob-top">
           <span className="cjob-crew">
@@ -152,7 +152,7 @@ function JobCard({
         </span>
       </button>
 
-      {!open && !stopping && (step || canStop(status)) && (
+      {(step || canStop(status)) && (
         <div className="cjob-quick">
           {step && (
             <button type="button" className={`q-step q-${step.label.toLowerCase()}`} disabled={busy} onClick={() => send({ Status: step.status })}>
@@ -160,7 +160,7 @@ function JobCard({
             </button>
           )}
           {canStop(status) && (
-            <button type="button" className="q-stop" disabled={busy} onClick={() => setStopping(true)}>
+            <button type="button" className={`q-stop${stopping ? " active" : ""}`} aria-expanded={stopping} disabled={busy} onClick={() => setStopping((v) => !v)}>
               Issue
             </button>
           )}
