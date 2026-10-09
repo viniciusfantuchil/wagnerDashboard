@@ -17,8 +17,9 @@ const MIN_FS = 13;
 const RELOAD_MINUTE = 4 * 60; // 4:00 AM
 const STAGE_H = 1080;
 const WEATHER_PLACE = "Rockledge";
-const MIN_STAGE_W = 1760; // narrower windows letterbox top and bottom
+const MIN_STAGE_W = 1920; // the prototype width; taller windows grow the stage in height instead
 const MAX_STAGE_W = 2560; // wider windows letterbox left and right
+const MAX_STAGE_H = 1536; // 5:4 screens (1280×1024) fill; even taller windows letterbox top and bottom
 
 const timeFmt = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: TZ });
 const dateFmt = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: TZ });
@@ -96,18 +97,23 @@ export function BoardScreen({ initial }: { initial: Board }) {
     };
   }, []);
 
-  // Scale the stage to fit the window. Height is fixed at 1080 px; the width follows the window's shape within
-  // limits, so a browser window fills edge to edge. On a 16:9 TV the stage is exactly 1920x1080.
+  // Scale the stage to fit the window. The stage takes the window's shape within limits, so any screen fills edge
+  // to edge: wide windows widen it (height 1080), tall ones (16:10, 4:3, 5:4) make it taller (width 1920).
+  // On a 16:9 TV the stage is exactly 1920x1080.
   const fit = useCallback(() => {
     const st = stageRef.current;
     if (!st) return;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const width = Math.round(Math.min(MAX_STAGE_W, Math.max(MIN_STAGE_W, (STAGE_H * vw) / vh)));
-    const s = Math.min(vw / width, vh / STAGE_H);
+    const aspect = vw / vh;
+    const tall = aspect < MIN_STAGE_W / STAGE_H;
+    const width = tall ? MIN_STAGE_W : Math.round(Math.min(MAX_STAGE_W, STAGE_H * aspect));
+    const height = tall ? Math.round(Math.min(MAX_STAGE_H, MIN_STAGE_W / aspect)) : STAGE_H;
+    const s = Math.min(vw / width, vh / height);
     const x = (vw - width * s) / 2;
-    const y = (vh - STAGE_H * s) / 2;
+    const y = (vh - height * s) / 2;
     st.style.width = `${width}px`;
+    st.style.height = `${height}px`;
     st.style.transform = `translate(${x}px, ${y}px) scale(${s})`;
   }, []);
 
