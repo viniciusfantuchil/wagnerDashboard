@@ -222,6 +222,11 @@ describe("times", () => {
     expect(j.parseWarnings).toEqual([WARN.allDay]);
   });
 
+  it("places a multi-day all-day event on the day being shown", () => {
+    const r = parseEvent(event({ start: { date: "2026-10-08" }, end: { date: "2026-10-10" } }), CREW, "2026-10-09");
+    expect(r.kind === "job" && r.job.start).toBe("2026-10-09T07:00:00-04:00");
+  });
+
   it("uses the EST offset in winter", () => {
     const j = job({ start: { date: "2026-12-14" }, end: { date: "2026-12-15" } });
     expect(j.start).toBe("2026-12-14T07:00:00-05:00");

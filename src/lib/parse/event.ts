@@ -150,20 +150,27 @@ export function splitSize(text: string): { service: string; size?: string } {
   return { service: text.slice(0, m.index).trim(), size: `${m[1]} ${unit}` };
 }
 
-function times(event: CalendarEvent, warnings: string[]): { start: string; end: string } | null {
+function times(event: CalendarEvent, warnings: string[], onDate?: string): { start: string; end: string } | null {
   if (event.start.dateTime && event.end.dateTime) return { start: event.start.dateTime, end: event.end.dateTime };
   if (event.start.date) {
     warnings.push(WARN.allDay);
-    return { start: nyIso(event.start.date, ALL_DAY_START), end: nyIso(event.start.date, ALL_DAY_END) };
+    // A multi-day all-day event (end date is exclusive) is placed on the day being shown.
+    const inRange = onDate && onDate >= event.start.date && (!event.end.date || onDate < event.end.date);
+    const day = inRange ? onDate : event.start.date;
+    return { start: nyIso(day, ALL_DAY_START), end: nyIso(day, ALL_DAY_END) };
   }
   return null;
 }
 
-export function parseEvent(event: CalendarEvent, crew: string): ParsedEvent {
+/**
+ * @param crew the calendar name, e.g. "Crew 2 · Jorge"
+ * @param onDate the board date being built (YYYY-MM-DD); places multi-day all-day events on that day
+ */
+export function parseEvent(event: CalendarEvent, crew: string, onDate?: string): ParsedEvent {
   if (event.status === "cancelled") return { kind: "skip", reason: "cancelled" };
 
   const warnings: string[] = [];
-  const when = times(event, warnings);
+  const when = times(event, warnings, onDate);
   if (!when) return { kind: "skip", reason: "no start time" };
 
   const title = (event.summary ?? "").trim();
