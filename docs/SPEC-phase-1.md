@@ -142,7 +142,7 @@ Order alerts with Deposit (D-003) first, then the other danger alerts, then warn
 - Protect the whole app (Vercel deployment protection, or a middleware check of a long random token in a cookie set once on the TV).
 - Show the city only, never the street address, on the screen. The address is used for geocoding on the server.
 - Secrets (service account key, map token) live in Vercel environment variables. Never commit them.
-- The service account gets read-only access to the 7 calendars and nothing else.
+- The service account gets access to the 7 calendars and nothing else. Reading the board uses the read-only scope. The control screen (`/control`, added 2026-10-09) needs "Make changes to events" on each calendar and uses the `calendar.events` scope, writing only the board's description lines.
 
 ## 9. Environment variables
 
@@ -152,6 +152,7 @@ CALENDAR_IDS=                     # JSON map: {"Crew 1 · Fernando": "...@group.
 MAP_STYLE=                        # optional: "schematic" to use the drawn map instead of OpenStreetMap
 KV_REST_API_URL= / KV_REST_API_TOKEN=
 BOARD_ACCESS_TOKEN=
+CONTROL_USERS=                    # JSON: personal links for /control, {"Diandra": {"key": "…", "office": true}, "Jorge": {"key": "…", "crew": "Crew 2"}}
 HQ_LAT= / HQ_LON=
 ```
 

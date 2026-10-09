@@ -58,6 +58,38 @@ Job and visit addresses are placed on the map on the server, with the free **US 
 - Lookups are cached in memory per server instance. A persistent cache (spec §4, KV) is still to do.
 - Street addresses are sent to the Census geocoder only. They never reach the browser.
 
+## Control screen (update job status)
+
+`/control` is a phone screen where the office and the crew leads update jobs. Each change is written to the job's Google Calendar event, so the calendar stays the single source and the TV updates within 5 minutes.
+
+| Who | Can change |
+|---|---|
+| Office (`"office": true`) | Status, Deposit, Permit, Material, 48-hour confirmation and Note, on every crew's jobs |
+| Crew lead (`"crew": "Crew 2"`) | Status and Note, on their own crew's jobs |
+
+**Personal links.** Each person gets a personal link, `https://<board url>/control?key=<their key>`. They open it once on their phone, and a cookie keeps them signed in for 400 days. The TV token does not open `/control`, and a personal link does not open the TV board.
+
+**What gets written.** Only the board's description lines change: `Status:`, `Deposit:`, `Permit:`, `Material:`, `Confirm48:` and `Note:`.
+
+- Every save adds an `Updated: <name> · <date, time>` line.
+- The title, time, location and every other line stay as they are.
+- If someone edited the event in Google Calendar since the screen loaded it, the save is refused (no overwrite) and the person reloads.
+
+**Setup**
+
+1. In each crew calendar's **Settings and sharing**, change the board's service account from "See all event details" to **"Make changes to events"**. The board asks Google only for the `calendar.events` scope, for this screen.
+2. Set `CONTROL_USERS` in Vercel, one entry per person, each with a key of at least 24 random characters:
+   ```json
+   {"Diandra": {"key": "…", "office": true}, "Vinicius": {"key": "…", "office": true},
+    "Fernando": {"key": "…", "crew": "Crew 1"}, "Jorge": {"key": "…", "crew": "Crew 2"},
+    "Darwin": {"key": "…", "crew": "Crew 3"}, "Jhonny": {"key": "…", "crew": "Crew 4"},
+    "Felipe": {"key": "…", "crew": "Felipe"}, "Bira": {"key": "…", "crew": "Excavation"},
+    "Jardel": {"key": "…", "crew": "Sealing"}}
+   ```
+3. Redeploy, then send each person their link.
+
+**To remove someone's access,** change or delete their key and redeploy. Their phone is signed out at once.
+
 ## Access control
 
 The board shows customer names, so the whole app is private (spec §8). Every page, API route and asset needs `BOARD_ACCESS_TOKEN`:

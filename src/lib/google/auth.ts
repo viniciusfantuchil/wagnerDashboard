@@ -10,6 +10,8 @@ export interface ServiceAccount {
 }
 
 export const CALENDAR_READONLY = "https://www.googleapis.com/auth/calendar.readonly";
+/** Edit events only (not calendars or sharing): used by the control screen to write job status. */
+export const CALENDAR_EVENTS = "https://www.googleapis.com/auth/calendar.events";
 const DEFAULT_TOKEN_URI = "https://oauth2.googleapis.com/token";
 /** Refresh this long before the token expires. */
 const EXPIRY_MARGIN_S = 300;

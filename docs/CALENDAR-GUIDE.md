@@ -59,7 +59,7 @@ Only `OK` counts as paid. "Paid", "yes" or "received" are not read as OK, so the
 
 Keep using colors to tell the crews apart, as today. The board does not read event colors.
 
-To change a job's status on the TV, edit the `Status:` line. The board picks it up within 5 minutes.
+To change a job's status on the TV, edit the `Status:` line, or use the **Job Status** screen on your phone (your personal link), which writes the same lines for you. The board picks it up within 5 minutes.
 
 ## 5. Times
 
