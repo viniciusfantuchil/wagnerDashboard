@@ -165,6 +165,7 @@ footer .src{margin-left:auto;color:var(--ink-muted);font-size:14px;overflow:hidd
 .more{font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:.82em;color:var(--ink-muted);padding:2px 12px}
 .empty{color:var(--ink-muted);font-size:.9em;padding:4px 2px}
 .job .t small{font-size:.6em;margin-left:3px}
+.job .t.all-day{font-size:.95em;text-transform:uppercase;letter-spacing:.03em;white-space:normal;line-height:1.05}
 footer .src.stale{color:var(--red);font-weight:600}
 .board-error{font-family:var(--body);color:var(--ink);text-align:center}
 .board-error h1{font-family:var(--display);font-size:48px;text-transform:uppercase;margin:0 0 12px}

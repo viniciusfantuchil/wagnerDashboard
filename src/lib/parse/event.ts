@@ -28,7 +28,7 @@ export const COLOR_STATUS: Record<string, Status> = {
   "8": "postponed", // Graphite
 };
 
-/** All-day events have no time; they are placed in the normal workday and flagged. */
+/** All-day events have no time; they are placed in the normal workday (for weather) and shown as "All day". */
 const ALL_DAY_START = "07:00";
 const ALL_DAY_END = "16:00";
 
@@ -46,13 +46,16 @@ export const WARN = {
   city: "City not found in address",
   title: "Title not in 'Customer – Service size' format",
   payment: "Payment text in title",
-  allDay: "All-day event: no start time",
   color: "Unknown event color",
 } as const;
 
 // " – ", " - " or " — " between title parts.
 const SEP = /\s+[–—-]\s+/;
-const ESTIMATE = /^EST\b\s*[–—:-]?\s*/i;
+const ESTIMATE = /^(?:EST|Estimate)\b\s*[–—:-]?\s*/i;
+/** "Stop @ Barry Schiedel": a short crew stop at a customer's. */
+const STOP = /^stop\s*@\s*/i;
+/** "(Morning) Pam Gonzalez": a leading time-of-day note, not part of the name. */
+const LEADING_NOTE = /^\([^)]{1,20}\)\s*/;
 const SIZE = /\b(\d[\d,]*(?:\.\d+)?)\s*(sq\.?\s*ft|sqft|sf|ln\.?\s*ft|lnft|lin\.?\s*ft|lf)\.?$/i;
 const MONEY = /\$\s?\d[\d,]*(?:\.\d+)?k?/gi;
 const PAYMENT = /\b(?:paid|unpaid|pd|deposit|dep|balance|bal|due|pending|invoice[sd]?|\d{1,3}\s?%)(?=\W|$)\.?/gi;
@@ -150,14 +153,13 @@ export function splitSize(text: string): { service: string; size?: string } {
   return { service: text.slice(0, m.index).trim(), size: `${m[1]} ${unit}` };
 }
 
-function times(event: CalendarEvent, warnings: string[], onDate?: string): { start: string; end: string } | null {
+function times(event: CalendarEvent, onDate?: string): { start: string; end: string; allDay?: true } | null {
   if (event.start.dateTime && event.end.dateTime) return { start: event.start.dateTime, end: event.end.dateTime };
   if (event.start.date) {
-    warnings.push(WARN.allDay);
     // A multi-day all-day event (end date is exclusive) is placed on the day being shown.
     const inRange = onDate && onDate >= event.start.date && (!event.end.date || onDate < event.end.date);
     const day = inRange ? onDate : event.start.date;
-    return { start: nyIso(day, ALL_DAY_START), end: nyIso(day, ALL_DAY_END) };
+    return { start: nyIso(day, ALL_DAY_START), end: nyIso(day, ALL_DAY_END), allDay: true };
   }
   return null;
 }
@@ -170,7 +172,7 @@ export function parseEvent(event: CalendarEvent, crew: string, onDate?: string):
   if (event.status === "cancelled") return { kind: "skip", reason: "cancelled" };
 
   const warnings: string[] = [];
-  const when = times(event, warnings, onDate);
+  const when = times(event, onDate);
   if (!when) return { kind: "skip", reason: "no start time" };
 
   const title = (event.summary ?? "").trim();
@@ -178,25 +180,35 @@ export function parseEvent(event: CalendarEvent, crew: string, onDate?: string):
 
   const loc = parseLocation(event.location);
 
-  // Estimate visit: "EST – Sorensen – Driveway".
+  // Estimate visit: "EST – Sorensen – Driveway" or "Estimate – Sorensen – Driveway".
   if (ESTIMATE.test(title)) {
     const [customer = "", ...rest] = scrubPayment(title.replace(ESTIMATE, "")).text.split(SEP);
     return {
       kind: "visit",
-      visit: { id: event.id, start: when.start, customer: customer.trim() || "Estimate", city: loc.city, service: rest.join(" – ").trim() || "Estimate" },
+      visit: {
+        id: event.id,
+        start: when.start,
+        ...(when.allDay ? { allDay: true } : {}),
+        customer: customer.trim() || "Estimate",
+        city: loc.city,
+        service: rest.join(" – ").trim() || "Estimate",
+      },
     };
   }
 
   // Job: "<Customer> – <Service> <size>". Old-style titles carry payment text; scrub it, never read it.
   const scrubbed = scrubPayment(title);
   if (scrubbed.found) warnings.push(WARN.payment);
-  const [head, ...rest] = scrubbed.text.split(SEP);
+  const isStop = STOP.test(scrubbed.text);
+  const text = scrubbed.text.replace(STOP, "").replace(LEADING_NOTE, "");
+  const [head, ...rest] = text.split(SEP);
   let customer = head?.trim() ?? "";
   let service = "";
   let size: string | undefined;
   if (rest.length > 0 && customer) {
     ({ service, size } = splitSize(rest.join(" – ")));
   }
+  if (!service && isStop && customer) service = "Stop";
   if (!service) {
     warnings.push(WARN.title);
     if (!customer) customer = scrubbed.text || "Untitled";
@@ -242,6 +254,7 @@ export function parseEvent(event: CalendarEvent, crew: string, onDate?: string):
       crew,
       start: when.start,
       end: when.end,
+      ...(when.allDay ? { allDay: true } : {}),
       customer,
       address: loc.address,
       city: loc.city,

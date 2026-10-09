@@ -83,7 +83,7 @@ export function buildAlerts({ today, nextWorkday, hourly }: AlertInput): Alert[]
       label: "Stopped",
       title: `${todayName(job)}: ${job.note ? lowerFirst(job.note) : "stopped"}`,
       text: [
-        `${crewLead(job.crew)} waiting since ${clock12(job.start)}.`,
+        job.allDay ? `${crewLead(job.crew)} is waiting.` : `${crewLead(job.crew)} waiting since ${clock12(job.start)}.`,
         job.note ? hint : "Add a Note to the event with the reason.",
       ]
         .filter(Boolean)
@@ -99,7 +99,7 @@ export function buildAlerts({ today, nextWorkday, hourly }: AlertInput): Alert[]
     add(job, {
       severity: "warning",
       label: "Weather",
-      title: `${todayName(job)}: ${lowerFirst(job.service)} at ${clock12(job.start)}`,
+      title: `${todayName(job)}: ${lowerFirst(job.service)} ${job.allDay ? "today" : `at ${clock12(job.start)}`}`,
       text: `${rain}. Confirm with ${crewLead(job.crew)} or reschedule.`,
     });
   }

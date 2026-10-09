@@ -5,6 +5,7 @@ Office TV wall display for Wagner Paver Contractors Inc. (Rockledge, FL), a resi
 ## Read first
 
 - `docs/SPEC-phase-1.md`: scope, data model, calendar convention, alert rules, done criteria.
+- `docs/CALENDAR-GUIDE.md`: one-page guide for the office on how to fill in calendar events.
 - `prototype/index.html`: the approved visual reference with sample data. Match its layout, wording and design tokens.
 
 ## People and data

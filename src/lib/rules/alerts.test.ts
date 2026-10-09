@@ -152,6 +152,16 @@ describe("Weather", () => {
   });
 });
 
+describe("all-day events", () => {
+  it("says 'today' instead of a made-up time", () => {
+    const sealing = job({ pin: 7, crew: "Sealing · Jardel", service: "Sealing", allDay: true, customer: "Whitaker" });
+    const stopped = job({ pin: 4, crew: "Felipe", customer: "Nguyen", status: "issue", note: "Material not delivered", allDay: true });
+    const out = alerts({ today: [sealing, stopped], hourly: rain([0, 0, 0, 0, 0, 0, 0, 50]) });
+    expect(out.find((a) => a.label === "Weather")?.title).toBe("#7 Whitaker: sealing today");
+    expect(out.find((a) => a.label === "Stopped")?.text).toBe("Felipe is waiting. Call the supplier.");
+  });
+});
+
 describe("Customer (D-007)", () => {
   it("flags a next-workday job without the 48-hour confirmation", () => {
     const j = job({ date: NEXT, customer: "Pereira", confirm48: "missing" });

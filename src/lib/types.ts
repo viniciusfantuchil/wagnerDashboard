@@ -8,6 +8,7 @@ export interface Job {
   crew: string; // from the calendar name, e.g. "Crew 2 · Jorge"
   start: string;
   end: string;
+  allDay?: true; // all-day calendar event: start/end are placeholders for the workday
   customer: string;
   address: string; // server only: never rendered on screen
   city: string;
@@ -28,6 +29,7 @@ export interface Job {
 export interface Visit {
   id: string;
   start: string;
+  allDay?: true;
   customer: string;
   city: string;
   lat?: number;

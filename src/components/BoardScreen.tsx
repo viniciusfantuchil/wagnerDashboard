@@ -216,10 +216,14 @@ export function BoardScreen({ initial }: { initial: Board }) {
                 return (
                   <div key={j.id} className={`job ${j.status === "issue" ? "flag-issue" : ""}`}>
                     <span className={`num s-${k}`}>{j.pin}</span>
-                    <span className="t">
-                      {hm}
-                      <small>{ap}</small>
-                    </span>
+                    {j.allDay ? (
+                      <span className="t all-day">All day</span>
+                    ) : (
+                      <span className="t">
+                        {hm}
+                        <small>{ap}</small>
+                      </span>
+                    )}
                     <span className="who">
                       {j.customer} <small>· {j.city}</small>
                     </span>
@@ -251,7 +255,7 @@ export function BoardScreen({ initial }: { initial: Board }) {
                     <span>{v.key.slice(1)}</span>
                   </span>
                   <div>
-                    <b>{clock12(v.start)}</b> {v.customer}
+                    <b>{v.allDay ? "All day" : clock12(v.start)}</b> {v.customer}
                     <small>
                       {v.city} · {v.service}
                     </small>
