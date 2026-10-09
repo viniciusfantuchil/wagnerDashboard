@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { crewColor, crewShort } from "./crews";
+import { crewColor, crewShort, isSealing } from "./crews";
 
 describe("crewColor", () => {
   it.each([
@@ -23,5 +23,11 @@ describe("crewColor", () => {
 describe("crewShort", () => {
   it("keeps crew numbers and uses the lead's name otherwise", () => {
     expect(["Crew 2 · Jorge", "Excavation · Bira", "Felipe"].map(crewShort)).toEqual(["Crew 2", "Bira", "Felipe"]);
+  });
+});
+
+describe("isSealing", () => {
+  it("picks the sealing calendar only", () => {
+    expect(["Sealing · Jardel", "Sealing", "Crew 2 · Jorge", "Excavation · Bira", "Felipe"].map(isSealing)).toEqual([true, true, false, false, false]);
   });
 });

@@ -114,6 +114,15 @@ main{display:grid;gap:14px;grid-template-columns:540px minmax(0,1fr) 600px;min-h
 .job .tags{grid-column:4;grid-row:1 / span 2;display:flex;gap:6px;align-items:center}
 .sub{font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:.82em;color:var(--ink-muted)}
 .visits{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;flex:none}
+.seals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;flex:none}
+.seal{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:7px 10px 7px 14px;min-width:0;box-shadow:inset 5px 0 0 var(--crew,transparent)}
+.seal .num{width:28px;height:28px;font-size:.9em;flex:none}
+.seal div{min-width:0;font-size:.86em}
+.seal b{display:block;font-family:var(--display);font-size:1.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seal small{display:block;color:var(--ink-muted);font-size:1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seal small em{font-style:normal;color:var(--red);font-weight:600}
+.seal .st-progress{color:var(--warning);font-weight:700} .seal .st-scheduled{color:var(--navy);font-weight:700} .seal .st-issue{color:var(--red);font-weight:700} .seal .st-done{color:var(--success);font-weight:700} .seal .st-postponed{color:var(--ink-muted);font-weight:700}
+.seal.flag-issue{border-color:var(--red)}
 .v{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:7px 10px;min-width:0}
 .v .k{flex:none;width:26px;height:26px;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:.8em;color:var(--navy);border:2px solid var(--navy);border-radius:3px;transform:rotate(45deg)}
 .v .k span{transform:rotate(-45deg)}
