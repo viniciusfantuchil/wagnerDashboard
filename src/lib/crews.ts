@@ -40,3 +40,8 @@ export function crewShort(crew: string): string {
   const head = crew.split("·")[0].trim();
   return /^Crew \d+$/.test(head) ? head : crewLead(crew);
 }
+
+/** Sealing jobs are short and quick: the board lists them apart, as the sealer's route. */
+export function isSealing(crew: string): boolean {
+  return crewRank(crew) === CREW_ORDER.indexOf("Sealing");
+}

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { MAX_ALERTS, RAIN_ALERT_PCT, rainSummary } from "@/lib/rules/alerts";
 import { clock12, clockParts, hourRange, hourShort, minuteOfDay, monthDay, TZ, weekdayShort } from "@/lib/time";
-import { crewColor, crewRank, crewShort } from "@/lib/crews";
+import { crewColor, crewLead, crewRank, crewShort, isSealing } from "@/lib/crews";
 import type { Board, Check } from "@/lib/types";
 import { BoardMap, TileBoardMap } from "./BoardMap";
 import { STATUS_LABEL, statusKey } from "./status";
@@ -12,6 +12,7 @@ const REFRESH_MS = 5 * 60_000;
 const CLOCK_MS = 15_000;
 const STALE_RED_MIN = 15;
 const MAX_JOBS = 10;
+const MAX_SEALS = 9;
 const BASE_FS = 18;
 const MIN_FS = 13;
 const RELOAD_MINUTE = 4 * 60; // 4:00 AM
@@ -146,7 +147,11 @@ export function BoardScreen({ initial }: { initial: Board }) {
   const { jobs, visits, weather, alerts, nextWorkday, sources } = board;
   const crews = new Set(jobs.map((j) => j.crew)).size;
   const counts = COUNTS.map((s) => ({ s, n: jobs.filter((j) => j.status === s).length }));
-  const shownJobs = jobs.slice(0, MAX_JOBS);
+  // Sealing stops are short: they get their own compact route list instead of full job rows.
+  const fieldJobs = jobs.filter((j) => !isSealing(j.crew));
+  const sealJobs = jobs.filter((j) => isSealing(j.crew));
+  const shownJobs = fieldJobs.slice(0, MAX_JOBS);
+  const shownSeals = sealJobs.slice(0, MAX_SEALS);
   const shownAlerts = alerts.slice(0, MAX_ALERTS);
 
   const hourly = weather?.hourly ?? [];
@@ -226,7 +231,9 @@ export function BoardScreen({ initial }: { initial: Board }) {
           <section className="panel" aria-labelledby="h-jobs">
             <div className="panel-head">
               <h2 id="h-jobs">Today&apos;s Jobs</h2>
-              <span className="eyebrow">{jobs.length} jobs · {crews} crews</span>
+              <span className="eyebrow">
+                {fieldJobs.length} jobs{sealJobs.length ? ` + ${sealJobs.length} sealing` : ""} · {crews} crews
+              </span>
             </div>
             <div className="counts">
               {counts.map(({ s, n }) => (
@@ -237,7 +244,7 @@ export function BoardScreen({ initial }: { initial: Board }) {
               ))}
             </div>
             <div className="jobs">
-              {shownJobs.length === 0 && <div className="empty">No jobs on the calendar today.</div>}
+              {shownJobs.length === 0 && <div className="empty">{sealJobs.length ? "Only sealing today." : "No jobs on the calendar today."}</div>}
               {shownJobs.map((j) => {
                 const { hm, ap } = clockParts(j.start);
                 const k = statusKey(j.status);
@@ -279,8 +286,41 @@ export function BoardScreen({ initial }: { initial: Board }) {
                   </div>
                 );
               })}
-              {jobs.length > shownJobs.length && <div className="more">+{jobs.length - shownJobs.length} more</div>}
+              {fieldJobs.length > shownJobs.length && <div className="more">+{fieldJobs.length - shownJobs.length} more</div>}
             </div>
+            {sealJobs.length > 0 && (
+              <>
+                <div className="sub">
+                  Sealing route · {crewLead(sealJobs[0].crew)} · {sealJobs.length} stop{sealJobs.length === 1 ? "" : "s"}
+                </div>
+                <div className="seals">
+                  {shownSeals.map((j) => {
+                    const k = statusKey(j.status);
+                    return (
+                      <div
+                        key={j.id}
+                        className={`seal${j.status === "issue" ? " flag-issue" : ""}`}
+                        style={{ "--crew": crewColor(j.crew) ?? "transparent" } as React.CSSProperties}
+                      >
+                        <span className={`num s-${k}`}>{j.pin}</span>
+                        <div>
+                          <b>
+                            {j.routeOrder ? `Stop ${j.routeOrder}` : j.allDay ? "All day" : clock12(j.start)} · {j.customer}
+                          </b>
+                          <small>
+                            <span className={`st-${k}`}>{STATUS_LABEL[j.status]}</span>
+                            {j.deposit !== "ok" ? <span className="st-issue"> · {j.deposit === "missing" ? "No deposit" : "Deposit unknown"}</span> : null}
+                            {` · ${j.city}`}
+                            {j.note ? <em> · {j.note}</em> : null}
+                          </small>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {sealJobs.length > shownSeals.length && <div className="more">+{sealJobs.length - shownSeals.length} more</div>}
+                </div>
+              </>
+            )}
             <div className="sub">Estimate visits · Kevin</div>
             <div className="visits">
               {visits.map((v) => (
