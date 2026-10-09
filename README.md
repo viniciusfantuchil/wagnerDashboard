@@ -30,10 +30,23 @@ npm run build
 | `src/lib/sources/` | `ScheduleSource` / `WeatherSource` interfaces and the sample implementation |
 | `src/lib/sources/calendar.ts` | `GoogleCalendarSource`: reads each crew calendar with the service account |
 | `src/lib/google/auth.ts` | Service account access tokens (no Google SDK) |
+| `src/proxy.ts`, `src/lib/access.ts` | Access control: every page and API route needs `BOARD_ACCESS_TOKEN` |
 | `src/lib/parse/event.ts` | Google Calendar event → `Job` or `Visit`, per the calendar convention (spec §6) |
 | `src/lib/rules/alerts.ts` | Alert rules (spec §7) |
 | `src/lib/rules/readiness.ts` | Next workday and ready-check rows |
 | `src/components/` | Screen components; styles in `src/app/globals.css` are copied from the prototype |
+
+## Access control
+
+The board shows customer names, so the whole app is private (spec §8). Every page, API route and asset needs `BOARD_ACCESS_TOKEN`:
+
+1. Generate a token (at least 24 characters): `openssl rand -base64 32 | tr '+/' '-_' | tr -d '='`.
+2. Set it as `BOARD_ACCESS_TOKEN` in Vercel (Production and Preview) and redeploy.
+3. On the TV, open `https://<board url>/?key=<token>` once. The board stores a cookie (a hash of the token, valid 400 days) and redirects to the clean URL, so the token does not stay in the address bar.
+
+Without the cookie, pages answer "Access denied" (401). In production, a missing or short token blocks everything (503) rather than leaving the board open. Locally, without a token, the app stays open.
+
+To rotate: set a new token, redeploy, and open the `?key=` link again on each screen. The old cookies stop working immediately.
 
 ## Google Calendar setup
 
