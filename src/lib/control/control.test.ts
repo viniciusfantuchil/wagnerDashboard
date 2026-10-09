@@ -72,6 +72,17 @@ describe("logins", () => {
     expect(await userForSession(dir, "garbage")).toBeNull();
   });
 
+  it("needs the server's secret to sign a session: the password hash alone (e.g. from the users sheet) is not enough", async () => {
+    vi.stubEnv("BOARD_ACCESS_TOKEN", "server-secret-0123456789abcdef");
+    const cookie = sessionCookie(entryFor("jorge")!);
+    expect(await userForSession(dir, cookie)).toEqual(jorge);
+    vi.stubEnv("BOARD_ACCESS_TOKEN", "");
+    const fromHashOnly = sessionCookie(entryFor("jorge")!);
+    vi.stubEnv("BOARD_ACCESS_TOKEN", "server-secret-0123456789abcdef");
+    expect(await userForSession(dir, fromHashOnly)).toBeNull();
+    vi.unstubAllEnvs();
+  });
+
   it.each([
     ['{"a b":{"password":"x","office":true}}', /not a valid username/],
     ['{"ana":{"password":"plain-text-password","office":true}}', /must be a password hash/],

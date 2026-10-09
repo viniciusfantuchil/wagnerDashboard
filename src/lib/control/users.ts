@@ -88,10 +88,11 @@ export async function checkLogin(dir: Directory, username: string, password: str
   return u && ok ? publicUser(u) : null;
 }
 
-// Session cookie: "<username>.<expiry seconds>.<HMAC>". The HMAC key is the user's password hash, so changing the
-// password invalidates every session of that user without a separate server secret.
+// Session cookie: "<username>.<expiry seconds>.<HMAC>". The HMAC key is the server's BOARD_ACCESS_TOKEN plus the
+// user's password hash: changing the password signs that user out everywhere, and someone who can read the users
+// sheet (and so the hashes) still cannot make a cookie without the server's secret.
 const sign = (u: UserEntry, exp: number) =>
-  createHmac("sha256", u.password).update(`wagner-control:${u.username}:${exp}`).digest("base64url");
+  createHmac("sha256", `${process.env.BOARD_ACCESS_TOKEN ?? ""}\n${u.password}`).update(`wagner-control:${u.username}:${exp}`).digest("base64url");
 
 export function sessionCookie(user: UserEntry, nowMs = Date.now()): string {
   const exp = Math.floor(nowMs / 1000) + SESSION_DAYS * 86_400;

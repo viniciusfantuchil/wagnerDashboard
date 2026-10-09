@@ -11,7 +11,7 @@ export function envUsers(env = process.env) {
   }
 }
 
-/** Everyone who can sign in: CONTROL_USERS plus the user store (Upstash Redis). */
+/** Everyone who can sign in: CONTROL_USERS plus the users sheet (Google Sheets). */
 export function controlDirectory(env = process.env): Directory {
   return directory(envUsers(env), getUserStore(env));
 }

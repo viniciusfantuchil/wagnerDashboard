@@ -139,7 +139,7 @@ Order alerts with Deposit (D-003) first, then the other danger alerts, then warn
 ## 8. Security and privacy
 
 - The board shows customer names and cities. It must not be public.
-- Protect the whole app (Vercel deployment protection, or a middleware check of a long random token in a cookie set once on the TV). Implemented: the code is typed once at `/login` (never in the URL); `/control` uses per-person usernames and passwords (PBKDF2 hashes in Upstash Redis); pages and APIs with data are sent `Cache-Control: no-store`.
+- Protect the whole app (Vercel deployment protection, or a middleware check of a long random token in a cookie set once on the TV). Implemented: the code is typed once at `/login` (never in the URL); `/control` uses per-person usernames and passwords (PBKDF2 hashes in a private Google Sheet written by the service account; session cookies are signed with the server secret plus the hash); pages and APIs with data are sent `Cache-Control: no-store`.
 - Show the city only, never the street address, on the screen. The address is used for geocoding on the server.
 - Secrets (service account key, map token) live in Vercel environment variables. Never commit them.
 - The service account gets access to the 7 calendars and nothing else. Reading the board uses the read-only scope. The control screen (`/control`, added 2026-10-09) needs "Make changes to events" on each calendar and uses the `calendar.events` scope, writing only the board's description lines.
@@ -150,7 +150,7 @@ Order alerts with Deposit (D-003) first, then the other danger alerts, then warn
 GOOGLE_SERVICE_ACCOUNT_JSON=      # base64 of the key file
 CALENDAR_IDS=                     # JSON map: {"Crew 1 · Fernando": "...@group.calendar.google.com", ...}
 MAP_STYLE=                        # optional: "schematic" to use the drawn map instead of OpenStreetMap
-KV_REST_API_URL= / KV_REST_API_TOKEN=  # Upstash Redis (Vercel Storage): /control users
+USERS_SHEET_ID=                       # private Google Sheet with the /control users (shared with the service account)
 BOARD_ACCESS_TOKEN=
 CONTROL_USERS=                    # optional: /control users fixed in Vercel (PBKDF2 hashes); normally users are added at /control/users
 HQ_LAT= / HQ_LON=

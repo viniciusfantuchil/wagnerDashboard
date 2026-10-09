@@ -7,46 +7,77 @@ import { GET as LIST, POST as ADD } from "@/app/api/control/users/route";
 import { ACCESS_COOKIE, cookieValue } from "@/lib/access";
 import { AdminError, createUser, needsSetup, removeUser, updateUser } from "./admin";
 import { hashPassword } from "./password";
-import { getUserStore, MemoryUserStore, RedisUserStore, setUserStoreForTests, type StoredUser } from "./store";
+import { getUserStore, GoogleSheetsUserStore, MemoryUserStore, setUserStoreForTests, SHEET_COLUMNS, type StoredUser } from "./store";
 import { CONTROL_COOKIE, directory, parseControlUsers, sessionCookie, userForSession, type ControlUser } from "./users";
 
 const ADMIN: ControlUser = { username: "vinicius", name: "Vinicius", office: true, admin: true };
 const ORIGIN = "https://board.example.com";
 
-describe("RedisUserStore (Upstash REST)", () => {
-  it("keeps each user as one field of the control:users hash, sent only to the server's Redis URL", async () => {
-    const calls: { url: string; auth: string | null; body: string[] }[] = [];
-    const data = new Map<string, string>();
+describe("GoogleSheetsUserStore", () => {
+  const auth = { token: async () => "TOKEN" };
+  const jorge: StoredUser = { username: "jorge", name: "Jorge", password: hashPassword("pw-123456", 100_000), office: false, crew: "Crew 2", createdAt: "t", createdBy: "Vinicius" };
+
+  function fakeSheet(initial: (string | boolean)[][] = []) {
+    let values = initial;
+    const calls: { method: string; url: string; auth: string | null; body?: string }[] = [];
     const fetchImpl = (async (url: string, init: RequestInit) => {
-      const body = JSON.parse(init.body as string) as string[];
-      calls.push({ url, auth: new Headers(init.headers).get("Authorization"), body });
-      const [cmd, , field, value] = body;
-      if (cmd === "HSET") data.set(field, value);
-      if (cmd === "HDEL") data.delete(field);
-      const result = cmd === "HGET" ? (data.get(field) ?? null) : cmd === "HGETALL" ? [...data].flat() : 1;
-      return new Response(JSON.stringify({ result }));
+      calls.push({ method: init.method!, url, auth: new Headers(init.headers).get("Authorization"), body: init.body as string | undefined });
+      if (init.method === "PUT") {
+        values = (JSON.parse(init.body as string) as { values: string[][] }).values;
+        return new Response("{}");
+      }
+      return new Response(JSON.stringify({ values }));
     }) as unknown as typeof fetch;
-    const store = new RedisUserStore("https://x.upstash.io", "TOKEN", fetchImpl);
-    const user: StoredUser = { username: "jorge", name: "Jorge", password: hashPassword("pw-123456", 100_000), office: false, crew: "Crew 2", createdAt: "t", createdBy: "Vinicius" };
-    await store.put(user);
-    expect(await store.get("jorge")).toEqual(user);
-    expect((await store.list()).map((u) => u.username)).toEqual(["jorge"]);
+    return { fetchImpl, calls, values: () => values };
+  }
+
+  it("keeps one user per row of the private sheet, with the hash and never the password", async () => {
+    const sheet = fakeSheet();
+    const store = new GoogleSheetsUserStore("SHEET1", auth, sheet.fetchImpl);
+    await store.put(jorge);
+    expect(await store.get("jorge")).toEqual(jorge);
+    expect(sheet.values()).toEqual([[...SHEET_COLUMNS], ["jorge", "Jorge", "crew lead", "Crew 2", jorge.password, "t", "Vinicius", "", ""]]);
+    await store.put({ ...ADMIN, password: jorge.password, createdAt: "t", createdBy: "setup" });
+    expect((await store.list()).map((u) => [u.username, u.admin ?? false, u.office])).toEqual([["jorge", false, false], ["vinicius", true, true]]);
     await store.remove("jorge");
+    // The emptied last row is blanked, not left behind.
+    expect(sheet.values()).toEqual([[...SHEET_COLUMNS], ["vinicius", "Vinicius", "admin", "", jorge.password, "t", "setup", "", ""], ["", "", "", "", "", "", "", "", ""]]);
     expect(await store.get("jorge")).toBeUndefined();
-    expect(calls.map((c) => c.body.slice(0, 2))).toEqual([["HSET", "control:users"], ["HGET", "control:users"], ["HGETALL", "control:users"], ["HDEL", "control:users"], ["HGET", "control:users"]]);
-    expect(calls.every((c) => c.url === "https://x.upstash.io" && c.auth === "Bearer TOKEN")).toBe(true);
-    expect(JSON.stringify(calls)).not.toContain("pw-123456");
+    expect(sheet.calls.every((c) => c.url.startsWith("https://sheets.googleapis.com/v4/spreadsheets/SHEET1/values/") && c.auth === "Bearer TOKEN")).toBe(true);
+    expect(sheet.calls.filter((c) => c.method === "PUT").every((c) => c.url.includes("valueInputOption=RAW"))).toBe(true);
+    expect(JSON.stringify(sheet.calls)).not.toContain("pw-123456");
   });
 
-  it("is used when the Vercel integration variables are set (either naming)", () => {
+  it("reads rows the office typed by hand, and skips rows without a username or hash", async () => {
+    const sheet = fakeSheet([[...SHEET_COLUMNS], [" Diandra ", "Diandra", "Office", "", jorge.password, "t", "x"], ["", "blank"], ["nohash", "No hash", "admin"]]);
+    const store = new GoogleSheetsUserStore("S", auth, sheet.fetchImpl);
+    expect(await store.list()).toEqual([{ username: "diandra", name: "Diandra", password: jorge.password, office: true, createdAt: "t", createdBy: "x" }]);
+  });
+
+  it("caches reads for 30 seconds and re-reads after a change", async () => {
+    let now = 0;
+    const sheet = fakeSheet([[...SHEET_COLUMNS]]);
+    const store = new GoogleSheetsUserStore("S", auth, sheet.fetchImpl, () => now);
+    await store.list();
+    await store.get("jorge");
+    expect(sheet.calls.length).toBe(1);
+    now = 31_000;
+    await store.list();
+    expect(sheet.calls.length).toBe(2);
+    await store.put(jorge);
+    expect(await store.get("jorge")).toEqual(jorge);
+  });
+
+  it("is used when USERS_SHEET_ID and the service account are set", () => {
     expect(getUserStore({})).toBeNull();
-    expect(getUserStore({ KV_REST_API_URL: "https://a.upstash.io", KV_REST_API_TOKEN: "t" })).toBeInstanceOf(RedisUserStore);
-    expect(getUserStore({ UPSTASH_REDIS_REST_URL: "https://b.upstash.io", UPSTASH_REDIS_REST_TOKEN: "t" })).toBeInstanceOf(RedisUserStore);
+    expect(getUserStore({ USERS_SHEET_ID: "S" })).toBeNull();
+    const key = JSON.stringify({ client_email: "a@b.iam.gserviceaccount.com", private_key: "k" });
+    expect(getUserStore({ USERS_SHEET_ID: "S", GOOGLE_SERVICE_ACCOUNT_JSON: key })).toBeInstanceOf(GoogleSheetsUserStore);
   });
 
-  it("reports Redis errors", async () => {
-    const store = new RedisUserStore("https://x.upstash.io", "BAD", (async () => new Response(JSON.stringify({ error: "WRONGPASS" }), { status: 401 })) as unknown as typeof fetch);
-    await expect(store.get("a")).rejects.toThrow(/User store: HTTP 401/);
+  it("reports Google errors", async () => {
+    const store = new GoogleSheetsUserStore("S", auth, (async () => new Response("PERMISSION_DENIED", { status: 403 })) as unknown as typeof fetch);
+    await expect(store.get("a")).rejects.toThrow(/User store: HTTP 403/);
   });
 });
 
