@@ -217,7 +217,7 @@ describe("Calendar", () => {
 });
 
 describe("ordering", () => {
-  it("orders by severity, then start time", () => {
+  it("puts Deposit first, then other danger, then warning; each by start time", () => {
     const out = alerts({
       today: [
         job({ pin: 1, customer: "A", at: "13:00", crew: "Sealing · Jardel", service: "Sealing", until: "17:00" }),
@@ -228,9 +228,9 @@ describe("ordering", () => {
       hourly: rain([0, 0, 0, 0, 0, 0, 50, 50, 50, 50]),
     });
     expect(out.map((a) => `${a.severity}:${a.title.split(":")[0]}`)).toEqual([
-      "danger:#3 C",
       "danger:#2 B",
       "danger:Mon · D",
+      "danger:#3 C",
       "warning:#1 A",
     ]);
   });
@@ -245,8 +245,8 @@ describe("sample board", () => {
   it("raises the prototype's five alerts", async () => {
     const board = await buildBoard(new Date("2026-10-09T13:00:00Z"));
     expect(board.alerts.map((a) => [a.label, a.title])).toEqual([
-      ["Stopped", "#4 Nguyen: material not delivered"],
       ["Deposit", "#3 Okafor: no 50% deposit"],
+      ["Stopped", "#4 Nguyen: material not delivered"],
       ["Weather", "#7 Whitaker: sealing at 1:00 PM"],
       ["Customer", "Mon · Pereira: 48-hour confirmation not sent"],
       ["Permit", "Mon · Ostrowski: permit pending"],

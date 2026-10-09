@@ -146,11 +146,11 @@ export function buildAlerts({ today, nextWorkday, hourly }: AlertInput): Alert[]
   return rankAlerts(out);
 }
 
-/** Danger before warning, then by start time. Ties keep rule order. */
+/** Deposit (D-003) first, then other danger, then warning; within each group by start time. Ties keep rule order. */
 function rankAlerts(items: Ranked[]): Alert[] {
-  const sev = (a: Alert) => (a.severity === "danger" ? 0 : 1);
+  const group = (a: Alert) => (a.label === "Deposit" ? 0 : a.severity === "danger" ? 1 : 2);
   return items
     .map((item, i) => ({ ...item, i }))
-    .sort((a, b) => sev(a.alert) - sev(b.alert) || Date.parse(a.start) - Date.parse(b.start) || a.i - b.i)
+    .sort((a, b) => group(a.alert) - group(b.alert) || Date.parse(a.start) - Date.parse(b.start) || a.i - b.i)
     .map((r) => r.alert);
 }

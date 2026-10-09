@@ -125,7 +125,7 @@ Today the payment status is written as free text in event titles. The parser mus
 
 ## 7. Alert rules
 
-Order alerts by severity, then by start time. Show at most 6; the rest collapse into "+N more".
+Order alerts with Deposit (D-003) first, then the other danger alerts, then warnings; within each group by start time. Show at most 6; the rest collapse into "+N more".
 
 | Rule | Severity | Label |
 |---|---|---|
