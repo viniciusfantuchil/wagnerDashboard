@@ -2,7 +2,7 @@ import { ChangeError, validateChanges } from "@/lib/control/changes";
 import { toControlJob } from "@/lib/control/jobs";
 import { controlUserFromRequest, sameOrigin, updatedLine } from "@/lib/control/session";
 import { canEditCrew } from "@/lib/control/users";
-import { getWriter } from "@/lib/sources";
+import { getSources, getWriter } from "@/lib/sources";
 import { WriteError } from "@/lib/sources/calendarWriter";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +33,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const changes = validateChanges(body.changes, user);
     const job = await writer.update(crew, id, changes, updatedLine(user), date);
+    getSources(date).schedule.forgetSearches?.();
     console.info(`Control: ${user.name} updated ${crew} event ${id}: ${Object.keys(changes).join(", ")}`);
     return Response.json({ job: toControlJob(job) });
   } catch (err) {

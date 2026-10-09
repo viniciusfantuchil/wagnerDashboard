@@ -116,6 +116,7 @@ describe("board map positions", () => {
     label: "test",
     sample: false,
     getDay: async (d) => (d === DATE ? { jobs: [job("a", "1600 Huntington Ln, Rockledge, FL", "Rockledge"), job("b", "", "Viera")], visits: [visit] } : { jobs: [], visits: [] }),
+    getJobs: async () => [],
     getBookedThrough: async () => null,
   };
 

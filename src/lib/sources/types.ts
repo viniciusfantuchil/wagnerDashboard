@@ -12,6 +12,10 @@ export interface ScheduleSource {
   readonly sample: boolean;
   /** Jobs and estimate visits on a local date (YYYY-MM-DD, America/New_York). */
   getDay(date: string): Promise<{ jobs: Job[]; visits: Visit[] }>;
+  /** Every job (no estimate visits) starting between two local dates, inclusive. Used by the control screen search. */
+  getJobs(from: string, to: string): Promise<Job[]>;
+  /** Drops remembered search results after a change is saved. */
+  forgetSearches?(): void;
   /** How far ahead the crews are booked, e.g. "early Dec.", or null when unknown. */
   getBookedThrough(today: string): Promise<string | null>;
 }

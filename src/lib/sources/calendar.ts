@@ -9,6 +9,7 @@ import type { ScheduleSource } from "./types";
 const API = "https://www.googleapis.com/calendar/v3";
 const PAGE_SIZE = 250;
 const MAX_PAGES = 10;
+const RANGE_CACHE_MS = 60_000;
 
 /** Calendar name (used as the crew name, e.g. "Crew 2 · Jorge") → calendar id. */
 export type CalendarIds = Record<string, string>;
@@ -34,10 +35,13 @@ export class GoogleCalendarSource implements ScheduleSource {
   readonly label = "Google Calendar";
   readonly sample = false;
 
+  private readonly ranges = new Map<string, { at: number; jobs: Job[] }>();
+
   constructor(
     private readonly calendars: CalendarIds,
     private readonly auth: Pick<ServiceAccountAuth, "token">,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly clock: () => number = Date.now,
   ) {}
 
   async getDay(date: string): Promise<{ jobs: Job[]; visits: Visit[] }> {
@@ -61,6 +65,39 @@ export class GoogleCalendarSource implements ScheduleSource {
       }
     }
     return { jobs, visits };
+  }
+
+  /**
+   * Jobs between two dates (inclusive), each dated by its own start. Remembered for a minute, so typing a search
+   * reads the calendars once rather than on every keystroke.
+   */
+  async getJobs(from: string, to: string): Promise<Job[]> {
+    const key = `${from}|${to}`;
+    const hit = this.ranges.get(key);
+    if (hit && this.clock() - hit.at < RANGE_CACHE_MS) return hit.jobs;
+    const timeMin = nyIso(from, "00:00");
+    const timeMax = nyIso(addDays(to, 1), "00:00");
+    const perCalendar = await Promise.all(
+      Object.entries(this.calendars).map(async ([crew, id]) => ({ crew, events: await this.list(crew, id, timeMin, timeMax) })),
+    );
+    const jobs: Job[] = [];
+    const seen = new Set<string>();
+    for (const { crew, events } of perCalendar) {
+      for (const event of events) {
+        if (seen.has(event.id)) continue;
+        seen.add(event.id);
+        const parsed = parseEvent(event, crew);
+        if (parsed.kind === "job") jobs.push(parsed.job);
+      }
+    }
+    if (this.ranges.size > 10) this.ranges.clear();
+    this.ranges.set(key, { at: this.clock(), jobs });
+    return jobs;
+  }
+
+  /** A saved change shows up in the next search at once. */
+  forgetSearches() {
+    this.ranges.clear();
   }
 
   /** Not available from the calendars in Phase 1; the footer hides it. */

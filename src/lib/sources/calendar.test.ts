@@ -186,3 +186,32 @@ describe("getSources", () => {
     expect(JSON.stringify(board)).not.toMatch(/Example Dr/);
   });
 });
+
+describe("GoogleCalendarSource.getJobs (control screen search)", () => {
+  it("reads a date range once per calendar, dates each job by its own start, skips visits, and remembers it for a minute", async () => {
+    const google = fakeGoogle({
+      "crew2@group.calendar.google.com": [[ev("a", "Hartley – Driveway 420 sf"), ev("v", "EST – Sorensen – Driveway")]],
+      "exc@group.calendar.google.com": [[ev("b", "Nguyen – Wall block 65 lnft", { start: { date: "2026-11-02" }, end: { date: "2026-11-03" } }), ev("a", "Hartley – Driveway 420 sf")]],
+    });
+    let now = 0;
+    const auth = new ServiceAccountAuth(parseServiceAccount(KEY_B64), CALENDAR_READONLY, google.fetchImpl);
+    const src = new GoogleCalendarSource(CALENDARS, auth, google.fetchImpl, () => now);
+    const jobs = await src.getJobs("2026-10-09", "2027-04-07");
+    expect(jobs.map((j) => [j.id, j.customer, j.start.slice(0, 10)])).toEqual([
+      ["a", "Hartley", "2026-10-09"],
+      ["b", "Nguyen", "2026-11-02"],
+    ]);
+    const lists = google.calls.filter((c) => c.url.hostname === "www.googleapis.com");
+    expect(lists).toHaveLength(2);
+    expect(lists[0].url.searchParams.get("timeMin")).toBe("2026-10-09T00:00:00-04:00");
+    expect(lists[0].url.searchParams.get("timeMax")).toBe("2027-04-08T00:00:00-04:00");
+
+    await src.getJobs("2026-10-09", "2027-04-07");
+    expect(google.calls.filter((c) => c.url.hostname === "www.googleapis.com")).toHaveLength(2);
+    src.forgetSearches();
+    await src.getJobs("2026-10-09", "2027-04-07");
+    now = 61_000;
+    await src.getJobs("2026-10-09", "2027-04-07");
+    expect(google.calls.filter((c) => c.url.hostname === "www.googleapis.com")).toHaveLength(6);
+  });
+});
