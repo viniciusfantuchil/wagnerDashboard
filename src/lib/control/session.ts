@@ -1,11 +1,27 @@
 import { TZ } from "@/lib/time";
-import { CONTROL_COOKIE, parseControlUsers, userForSession, type ControlUser } from "./users";
+import { getUserStore } from "./store";
+import { CONTROL_COOKIE, directory, parseControlUsers, userForSession, type ControlUser, type Directory } from "./users";
+
+export function envUsers(env = process.env) {
+  try {
+    return parseControlUsers(env.CONTROL_USERS);
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
+/** Everyone who can sign in: CONTROL_USERS plus the user store (Upstash Redis). */
+export function controlDirectory(env = process.env): Directory {
+  return directory(envUsers(env), getUserStore(env));
+}
 
 /** The control-screen user a session cookie identifies, or null. Route handlers check this themselves. */
-export function controlUserFromCookie(cookie: string | undefined, env = process.env): ControlUser | null {
+export async function controlUserFromCookie(cookie: string | undefined, env = process.env): Promise<ControlUser | null> {
   try {
-    return userForSession(parseControlUsers(env.CONTROL_USERS), cookie);
-  } catch {
+    return await userForSession(controlDirectory(env), cookie);
+  } catch (err) {
+    console.error("Session check failed:", err);
     return null;
   }
 }
@@ -19,9 +35,12 @@ export function cookieFrom(request: Request, name: string): string | undefined {
     ?.slice(name.length + 1);
 }
 
-export function controlUserFromRequest(request: Request, env = process.env): ControlUser | null {
+export function controlUserFromRequest(request: Request, env = process.env): Promise<ControlUser | null> {
   return controlUserFromCookie(cookieFrom(request, CONTROL_COOKIE), env);
 }
+
+/** Headers for every response that carries people's data or a session: never stored by browsers or proxies. */
+export const NO_STORE = { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache" } as const;
 
 /** POSTs must come from the board's own pages (cookies are SameSite=Lax too). */
 export function sameOrigin(request: Request): boolean {

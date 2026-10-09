@@ -62,14 +62,21 @@ Job and visit addresses are placed on the map on the server, with the free **US 
 
 `/control` is a phone screen where the office and the crew leads update jobs. Each change is written to the job's Google Calendar event, so the calendar stays the single source and the TV updates within 5 minutes.
 
-| Who | Can change |
+| Role | Can change |
 |---|---|
-| Office (`"office": true`) | Status, Deposit, Permit, Material, 48-hour confirmation and Note, on every crew's jobs |
-| Crew lead (`"crew": "Crew 2"`) | Status and Note, on their own crew's jobs |
+| Admin | Everything an office user can, plus adding, changing and removing users at `/control/users` |
+| Office | Status, Deposit, Permit, Material, 48-hour confirmation and Note, on every crew's jobs |
+| Crew lead | Status and Note, on their own crew's jobs |
 
-**Sign-in.** Each person signs in at `https://<board url>/control` with a username and password. A phone stays signed in for 90 days, and **Sign out** ends the session.
+**Sign-in.** People sign in at `https://<board url>/control` with a username and password.
+- A device stays signed in for 30 days. **Sign out** ends the session and asks the browser to clear the site's cache and storage.
 - **Lockout:** after 5 wrong passwords, that username (and that network address) waits 15 minutes.
-- **Separate from the TV:** the TV token does not open `/control`, and a control login does not open the TV board.
+
+**Nothing secret in the browser or in caches:**
+- Passwords are typed only into the sign-in and Users forms, sent once over HTTPS, and stored only as PBKDF2 hashes (600,000 iterations). They are never shown, logged or sent back. Forms ask the browser not to save what is typed.
+- The session is an httpOnly cookie that scripts can't read. It is signed with the user's password hash, so a new password or a removed user signs that person out at once.
+- No code or password is ever put in a page address.
+- Every page and API response with people's data or a session is sent with `Cache-Control: no-store`. Only the public OpenStreetMap tiles and the logo are cacheable.
 
 **What gets written.** Only the board's description lines change: `Status:`, `Deposit:`, `Permit:`, `Material:`, `Confirm48:` and `Note:`.
 
@@ -77,39 +84,31 @@ Job and visit addresses are placed on the map on the server, with the free **US 
 - The title, time, location and every other line stay as they are.
 - If someone edited the event in Google Calendar since the screen loaded it, the save is refused (no overwrite) and the person reloads.
 
-**Passwords are stored as hashes, never as the password.** `CONTROL_USERS` holds a PBKDF2 hash (600,000 iterations) for each person. To make one, open `https://<board url>/control/password`, type the password twice, and copy the hash. The hash is computed in your browser, and the password is not sent anywhere.
-
 **Setup**
 
-1. In each crew calendar's **Settings and sharing**, change the board's service account from "See all event details" to **"Make changes to events"**. The board asks Google only for the `calendar.events` scope, for this screen.
-2. Choose a username and a password (at least 8 characters) for each person, and make a hash for each password at `/control/password`.
-3. Set `CONTROL_USERS` in Vercel. The key is the username:
-   ```json
-   {"diandra":  {"name": "Diandra",  "password": "pbkdf2$600000$…", "office": true},
-    "vinicius": {"name": "Vinicius", "password": "pbkdf2$600000$…", "office": true},
-    "fernando": {"name": "Fernando", "password": "pbkdf2$600000$…", "crew": "Crew 1"},
-    "jorge":    {"name": "Jorge",    "password": "pbkdf2$600000$…", "crew": "Crew 2"},
-    "darwin":   {"name": "Darwin",   "password": "pbkdf2$600000$…", "crew": "Crew 3"},
-    "jhonny":   {"name": "Jhonny",   "password": "pbkdf2$600000$…", "crew": "Crew 4"},
-    "felipe":   {"name": "Felipe",   "password": "pbkdf2$600000$…", "crew": "Felipe"},
-    "bira":     {"name": "Bira",     "password": "pbkdf2$600000$…", "crew": "Excavation"},
-    "jardel":   {"name": "Jardel",   "password": "pbkdf2$600000$…", "crew": "Sealing"}}
-   ```
-4. Redeploy, then give each person their username and password.
+1. **User database:** in Vercel, open the project, then **Storage → Create Database → Upstash for Redis** (free plan) and connect it to the project. Vercel adds `KV_REST_API_URL` and `KV_REST_API_TOKEN` itself. Only the server uses them.
+2. **Calendar access:** in each crew calendar's **Settings and sharing**, change the board's service account from "See all event details" to **"Make changes to events"**. The board asks Google only for the `calendar.events` scope, for this screen.
+3. Redeploy.
+4. **First admin:** on a computer that already shows the TV board, open `https://<board url>/control/setup` and create your admin username and password.
+   - This page works only while no admin exists.
+   - It works only on a device that has the board's access.
+5. **Everyone else:** sign in at `/control`, open **Users**, and add each person with a username, name, role (crew leads also pick their crew) and a first password. Give them their username and password in person.
 
-**To reset a password or remove someone,** put a new hash in their entry (or delete the entry) and redeploy. Their phone is signed out at once.
+**To reset a password,** use **Set new password** on `/control/users`. **To remove someone,** use **Remove**. Either takes effect at once.
+
+*Optional:* users can also be set in the `CONTROL_USERS` variable, keyed by username with a PBKDF2 password hash (`{"vinicius": {"name": "Vinicius", "password": "pbkdf2$600000$…", "admin": true}}`). Such users are read-only on `/control/users`.
 
 ## Access control
 
 The board shows customer names, so the whole app is private (spec §8). Every page, API route and asset needs `BOARD_ACCESS_TOKEN`:
 
-1. Generate a token (at least 24 characters): `openssl rand -base64 32 | tr '+/' '-_' | tr -d '='`.
+1. Generate an access code (at least 24 characters). PowerShell: `$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b) -replace '\+','-' -replace '/','_' -replace '=',''`.
 2. Set it as `BOARD_ACCESS_TOKEN` in Vercel (Production and Preview) and redeploy.
-3. On the TV, open `https://<board url>/?key=<token>` once. The board stores a cookie (a hash of the token, valid 400 days) and redirects to the clean URL, so the token does not stay in the address bar.
+3. On the TV, open the board. It goes to `https://<board url>/login`. Type the code once. The board stores an httpOnly cookie (a hash of the code, valid 400 days). The code is never put in the address, so it does not end up in the browser history.
 
-Without the cookie, pages answer "Access denied" (401). In production, a missing or short token blocks everything (503) rather than leaving the board open. Locally, without a token, the app stays open.
+Without the cookie, pages go to `/login` and APIs answer 401. In production, a missing or short code blocks everything (503) rather than leaving the board open. Locally, without a code, the app stays open.
 
-To rotate: set a new token, redeploy, and open the `?key=` link again on each screen. The old cookies stop working immediately.
+To rotate: set a new code, redeploy, and type it again at `/login` on each screen. The old cookies stop working immediately.
 
 ## Google Calendar setup
 

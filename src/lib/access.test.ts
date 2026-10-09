@@ -1,49 +1,74 @@
-import { describe, expect, it } from "vitest";
-import { cookieValue, decideAccess } from "./access";
+import { NextRequest } from "next/server";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { POST as BOARD_LOGIN } from "@/app/api/board/login/route";
+import { proxy } from "@/proxy";
+import { ACCESS_COOKIE, cookieValue, decideAccess } from "./access";
 
 const TOKEN = "s3cr3t-token-for-the-tv-0123456789";
-const url = (path: string) => new URL(`https://board.example.com${path}`);
 
 describe("decideAccess", () => {
-  it("lets the TV in with the key once, sets a hashed cookie and redirects to the clean URL", () => {
-    const d = decideAccess({ token: TOKEN, url: url("/?key=" + TOKEN), cookie: undefined, production: true });
-    expect(d).toEqual({ action: "grant", location: "/", cookie: cookieValue(TOKEN) });
-    expect(d.action === "grant" && d.cookie).not.toContain(TOKEN);
-  });
-
-  it("keeps other query parameters when stripping the key", () => {
-    const d = decideAccess({ token: TOKEN, url: url(`/?a=1&key=${TOKEN}&b=2`), cookie: undefined, production: true });
-    expect(d).toMatchObject({ action: "grant", location: "/?a=1&b=2" });
-  });
-
-  it("allows requests with the cookie", () => {
-    expect(decideAccess({ token: TOKEN, url: url("/api/board"), cookie: cookieValue(TOKEN), production: true })).toEqual({ action: "allow" });
+  it("allows requests with the board cookie", () => {
+    expect(decideAccess({ token: TOKEN, cookie: cookieValue(TOKEN), production: true })).toEqual({ action: "allow" });
   });
 
   it.each([
-    ["no key and no cookie", "/", undefined],
-    ["a wrong key", "/?key=wrong", undefined],
-    ["an empty key", "/?key=", undefined],
-    ["the raw token as cookie", "/", TOKEN],
-    ["a cookie from an old token", "/", cookieValue("an-older-token-that-was-rotated")],
-  ])("denies %s", (_, path, cookie) => {
-    expect(decideAccess({ token: TOKEN, url: url(path), cookie, production: true })).toEqual({ action: "deny" });
+    ["no cookie", undefined],
+    ["the raw token as cookie", TOKEN],
+    ["a cookie from an old token", cookieValue("an-older-token-that-was-rotated")],
+  ])("denies %s", (_, cookie) => {
+    expect(decideAccess({ token: TOKEN, cookie, production: true })).toEqual({ action: "deny" });
   });
 
-  it("denies a wrong key even with a valid cookie", () => {
-    expect(decideAccess({ token: TOKEN, url: url("/?key=wrong"), cookie: cookieValue(TOKEN), production: true })).toEqual({ action: "deny" });
-  });
-
-  it("refuses everything in production when no token is configured", () => {
-    expect(decideAccess({ token: undefined, url: url("/"), cookie: undefined, production: true })).toEqual({ action: "misconfigured" });
-    expect(decideAccess({ token: "", url: url("/"), cookie: undefined, production: true })).toEqual({ action: "misconfigured" });
-  });
-
-  it("refuses a token that is too short", () => {
-    expect(decideAccess({ token: "short", url: url("/?key=short"), cookie: undefined, production: true })).toEqual({ action: "misconfigured" });
+  it("refuses everything in production when no token, or a short one, is configured", () => {
+    expect(decideAccess({ token: undefined, cookie: undefined, production: true })).toEqual({ action: "misconfigured" });
+    expect(decideAccess({ token: "short", cookie: undefined, production: true })).toEqual({ action: "misconfigured" });
   });
 
   it("stays open in local development when no token is configured", () => {
-    expect(decideAccess({ token: undefined, url: url("/"), cookie: undefined, production: false })).toEqual({ action: "allow" });
+    expect(decideAccess({ token: undefined, cookie: undefined, production: false })).toEqual({ action: "allow" });
+  });
+});
+
+describe("TV setup at /login", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  const login = (token: string, ip = "203.0.113.20", origin = "https://board.example.com") =>
+    BOARD_LOGIN(
+      new Request("https://board.example.com/api/board/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", origin, "x-forwarded-for": ip },
+        body: JSON.stringify({ token }),
+      }),
+    );
+
+  it("sets the board cookie (a hash of the code, httpOnly) from the typed code, never from the address", async () => {
+    vi.stubEnv("BOARD_ACCESS_TOKEN", TOKEN);
+    const res = await login(TOKEN);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie")).toBe(`${ACCESS_COOKIE}=${cookieValue(TOKEN)}; Path=/; Max-Age=34560000; HttpOnly; SameSite=Lax; Secure`);
+    expect(res.headers.get("cache-control")).toBe("no-store, max-age=0");
+  });
+
+  it("refuses a wrong code and a cross-site post", async () => {
+    vi.stubEnv("BOARD_ACCESS_TOKEN", TOKEN);
+    expect((await login("wrong-code", "203.0.113.21")).status).toBe(401);
+    expect((await login(TOKEN, "203.0.113.22", "https://evil.example")).status).toBe(403);
+  });
+
+  it("no longer opens the board from a ?key= address", async () => {
+    vi.stubEnv("BOARD_ACCESS_TOKEN", TOKEN);
+    const res = await proxy(new NextRequest(`https://board.example.com/?key=${TOKEN}`));
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe("https://board.example.com/login");
+    expect(res.cookies.get(ACCESS_COOKIE)).toBeUndefined();
+  });
+
+  it("serves the board without caching, and lets the public map tiles be cached", async () => {
+    vi.stubEnv("BOARD_ACCESS_TOKEN", TOKEN);
+    const cookie = `${ACCESS_COOKIE}=${cookieValue(TOKEN)}`;
+    const page = await proxy(new NextRequest("https://board.example.com/", { headers: { cookie } }));
+    expect(page.headers.get("cache-control")).toBe("no-store, max-age=0");
+    const tile = await proxy(new NextRequest("https://board.example.com/api/tiles/10/282/427", { headers: { cookie } }));
+    expect(tile.headers.get("cache-control")).toBeNull();
+    expect((await proxy(new NextRequest("https://board.example.com/api/board"))).status).toBe(401);
   });
 });

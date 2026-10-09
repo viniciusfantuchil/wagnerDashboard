@@ -173,10 +173,15 @@ export function ControlScreen({ user }: { user: ControlUser }) {
         <div>
           <h1>Job Status</h1>
           <p>
-            {user.name} · {user.office ? "Office" : user.crew}
+            {user.name} · {user.admin ? "Admin" : user.office ? "Office" : user.crew}
           </p>
         </div>
         <div className="control-actions">
+          {user.admin && (
+            <a className="control-link" href="/control/users">
+              Users
+            </a>
+          )}
           <button type="button" onClick={load}>
             Refresh
           </button>
@@ -184,8 +189,8 @@ export function ControlScreen({ user }: { user: ControlUser }) {
             type="button"
             className="ghost"
             onClick={async () => {
-              await fetch("/api/control/logout", { method: "POST" });
-              location.href = "/control/login";
+              await fetch("/api/control/logout", { method: "POST", cache: "no-store" });
+              location.replace("/control/login");
             }}
           >
             Sign out

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /** Today's and the next workday's jobs the signed-in user may update. */
 export async function GET(request: Request) {
-  const user = controlUserFromRequest(request);
+  const user = await controlUserFromRequest(request);
   if (!user) return Response.json({ error: "Sign in first" }, { status: 401 });
   try {
     const now = new Date();

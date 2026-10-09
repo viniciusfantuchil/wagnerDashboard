@@ -11,7 +11,7 @@ import { applyChanges, ChangeError, currentValues, validateChanges } from "./cha
 import { hashPassword, isPasswordHash, verifyPassword } from "./password";
 import { updatedLine } from "./session";
 import { LoginThrottle, MAX_FAILURES } from "./throttle";
-import { canEditCrew, checkLogin, CONTROL_COOKIE, entryFor, parseControlUsers, sessionCookie, userForSession } from "./users";
+import { canEditCrew, checkLogin, CONTROL_COOKIE, directory, parseControlUsers, sessionCookie, userForSession } from "./users";
 
 // Fewer iterations than production (600,000) keeps the tests fast; the format is the same.
 const ITER = 100_000;
@@ -22,8 +22,10 @@ const USERS_JSON = JSON.stringify({
   jardel: { name: "Jardel", password: hashPassword(PASSWORDS.jardel, ITER), crew: "Sealing" },
 });
 const users = parseControlUsers(USERS_JSON);
-const office = checkLogin(users, "diandra", PASSWORDS.diandra)!;
-const jorge = checkLogin(users, "jorge", PASSWORDS.jorge)!;
+const dir = directory(users, null);
+const entryFor = (u: string) => users.find((x) => x.username === u);
+const office = (await checkLogin(dir, "diandra", PASSWORDS.diandra))!;
+const jorge = (await checkLogin(dir, "jorge", PASSWORDS.jorge))!;
 
 describe("passwords", () => {
   it("verifies the right password only", () => {
@@ -44,35 +46,35 @@ describe("passwords", () => {
 });
 
 describe("logins", () => {
-  it("signs people in with their username (any case) and password", () => {
+  it("signs people in with their username (any case) and password", async () => {
     expect(office).toEqual({ username: "diandra", name: "Diandra", office: true });
     expect(jorge).toEqual({ username: "jorge", name: "Jorge", office: false, crew: "Crew 2" });
-    expect(checkLogin(users, " JORGE ", PASSWORDS.jorge)?.username).toBe("jorge");
-    expect(checkLogin(users, "jorge", "wrong-password")).toBeNull();
-    expect(checkLogin(users, "nobody", PASSWORDS.jorge)).toBeNull();
+    expect((await checkLogin(dir, " JORGE ", PASSWORDS.jorge))?.username).toBe("jorge");
+    expect(await checkLogin(dir, "jorge", "wrong-password")).toBeNull();
+    expect(await checkLogin(dir, "nobody", PASSWORDS.jorge)).toBeNull();
   });
 
-  it("keeps a session for 90 days in a signed cookie without the password", () => {
+  it("keeps a session for 30 days in a signed cookie without the password", async () => {
     const now = Date.parse("2026-10-09T12:00:00Z");
-    const cookie = sessionCookie(entryFor(users, "jorge")!, now);
+    const cookie = sessionCookie(entryFor("jorge")!, now);
     expect(cookie).not.toContain(PASSWORDS.jorge);
-    expect(userForSession(users, cookie, now)).toEqual(jorge);
-    expect(userForSession(users, cookie, now + 89 * 86_400_000)).toEqual(jorge);
-    expect(userForSession(users, cookie, now + 91 * 86_400_000)).toBeNull();
+    expect(await userForSession(dir, cookie, now)).toEqual(jorge);
+    expect(await userForSession(dir, cookie, now + 29 * 86_400_000)).toEqual(jorge);
+    expect(await userForSession(dir, cookie, now + 31 * 86_400_000)).toBeNull();
   });
 
-  it("refuses forged sessions and signs a person out when their password changes", () => {
-    const cookie = sessionCookie(entryFor(users, "jorge")!);
-    expect(userForSession(users, cookie.replace(/^jorge/, "diandra"))).toBeNull();
-    expect(userForSession(users, cookie.replace(/\.(\d+)\./, (_, e) => `.${Number(e) + 1}.`))).toBeNull();
+  it("refuses forged sessions and signs a person out when their password changes", async () => {
+    const cookie = sessionCookie(entryFor("jorge")!);
+    expect(await userForSession(dir, cookie.replace(/^jorge/, "diandra"))).toBeNull();
+    expect(await userForSession(dir, cookie.replace(/\.(\d+)\./, (_, e) => `.${Number(e) + 1}.`))).toBeNull();
     const changed = parseControlUsers(USERS_JSON.replace(/"Jorge":\{"password":"[^"]+"/, `"Jorge":{"password":"${hashPassword("new-pass-000", ITER)}"`));
-    expect(userForSession(changed, cookie)).toBeNull();
-    expect(userForSession(users, "garbage")).toBeNull();
+    expect(await userForSession(directory(changed, null), cookie)).toBeNull();
+    expect(await userForSession(dir, "garbage")).toBeNull();
   });
 
   it.each([
     ['{"a b":{"password":"x","office":true}}', /not a valid username/],
-    ['{"ana":{"password":"plain-text-password","office":true}}', /must be a hash/],
+    ['{"ana":{"password":"plain-text-password","office":true}}', /must be a password hash/],
     [`{"ana":{"password":"${hashPassword("x", ITER)}"}}`, /needs "office": true or a crew/],
     [`{"ana":{"password":"${hashPassword("x", ITER)}","crew":"Crew 9"}}`, /needs "office": true or a crew/],
     ["[]", /JSON object/],
@@ -105,11 +107,11 @@ describe("login throttle", () => {
 });
 
 describe("permissions", () => {
-  it("lets crew leads edit only their own crew", () => {
+  it("lets crew leads edit only their own crew", async () => {
     expect(canEditCrew(jorge, "Crew 2 · Jorge")).toBe(true);
     expect(canEditCrew(jorge, "Crew 3 · Darwin")).toBe(false);
     expect(canEditCrew(office, "Sealing · Jardel")).toBe(true);
-    expect(canEditCrew(checkLogin(users, "jardel", PASSWORDS.jardel)!, "Sealing · Jardel")).toBe(true);
+    expect(canEditCrew((await checkLogin(dir, "jardel", PASSWORDS.jardel))!, "Sealing · Jardel")).toBe(true);
   });
 
   it("lets crew leads change only Status and Note", () => {
@@ -326,9 +328,9 @@ describe("login API", () => {
     const res = await login("Diandra", PASSWORDS.diandra);
     expect(res.status).toBe(200);
     const setCookie = res.headers.get("set-cookie")!;
-    expect(setCookie).toMatch(/^board_control=diandra\.\d+\.[\w-]{43}; Path=\/; Max-Age=7776000; HttpOnly; SameSite=Lax; Secure$/);
+    expect(setCookie).toMatch(/^board_control=diandra\.\d+\.[\w-]{43}; Path=\/; Max-Age=2592000; HttpOnly; SameSite=Lax; Secure$/);
     const value = setCookie.split(";")[0].split("=")[1];
-    expect(userForSession(users, value)).toEqual(office);
+    expect(await userForSession(dir, value)).toEqual(office);
   });
 
   it("answers the same way for a wrong password and an unknown user", async () => {
@@ -356,25 +358,28 @@ describe("proxy for /control", () => {
   const req = (path: string, cookie?: string) =>
     new NextRequest(`https://board.example.com${path}`, { headers: cookie ? { cookie } : {} });
 
-  it("sends people without a session to the login page", () => {
+  it("sends people without a session to the login page, without caching", async () => {
     vi.stubEnv("CONTROL_USERS", USERS_JSON);
-    const res = proxy(req("/control"));
+    const res = await proxy(req("/control"));
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe("https://board.example.com/control/login");
-    expect(proxy(req("/api/control/jobs")).status).toBe(401);
+    expect(res.headers.get("cache-control")).toBe("no-store, max-age=0");
+    expect((await proxy(req("/api/control/jobs"))).status).toBe(401);
   });
 
-  it("keeps the login and password-hash pages open, even before CONTROL_USERS is set", () => {
+  it("keeps the sign-in and first-admin pages open", async () => {
     vi.stubEnv("CONTROL_USERS", "");
-    for (const path of ["/control/login", "/control/password", "/api/control/login"]) {
-      expect(proxy(req(path)).headers.get("x-middleware-next")).toBe("1");
+    for (const path of ["/control/login", "/control/setup", "/api/control/login", "/api/control/setup", "/login"]) {
+      const res = await proxy(req(path));
+      expect(res.headers.get("x-middleware-next")).toBe("1");
+      expect(res.headers.get("cache-control")).toBe("no-store, max-age=0");
     }
   });
 
-  it("lets a signed-in person through without the TV token, and the TV token does not open /control", () => {
+  it("lets a signed-in person through without the TV token, and the TV cookie does not open /control", async () => {
     vi.stubEnv("CONTROL_USERS", USERS_JSON);
     vi.stubEnv("BOARD_ACCESS_TOKEN", "tv-token-0123456789abcdefghijk");
-    expect(proxy(req("/control", cookieFor("Jorge"))).headers.get("x-middleware-next")).toBe("1");
-    expect(proxy(req("/control?key=tv-token-0123456789abcdefghijk")).status).toBe(307);
+    expect((await proxy(req("/control", cookieFor("Jorge")))).headers.get("x-middleware-next")).toBe("1");
+    expect((await proxy(req("/control", "board_access=anything"))).status).toBe(307);
   });
 });

@@ -11,7 +11,7 @@ const STATUS: Record<WriteError["code"], number> = { not_found: 404, conflict: 4
 
 /** Saves a job's Status / Deposit / Permit / Material / Confirm48 / Note to its calendar event. */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = controlUserFromRequest(request);
+  const user = await controlUserFromRequest(request);
   if (!user) return Response.json({ error: "Sign in first" }, { status: 401 });
   if (!sameOrigin(request)) return Response.json({ error: "Bad origin" }, { status: 403 });
 
