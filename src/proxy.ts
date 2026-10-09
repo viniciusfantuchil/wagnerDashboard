@@ -29,11 +29,15 @@ export async function proxy(request: NextRequest) {
   if (PUBLIC.has(path)) return noStore(NextResponse.next());
   if (path === "/control" || path.startsWith("/control/") || path.startsWith("/api/control/")) return controlProxy(request);
 
-  const decision = decideAccess({
+  let decision = decideAccess({
     token: process.env.BOARD_ACCESS_TOKEN,
     cookie: request.cookies.get(ACCESS_COOKIE)?.value,
     production: process.env.NODE_ENV === "production",
   });
+  // People signed in to the Job Status screen may also open the board (its "Board" button), without the TV code.
+  if (decision.action === "deny" && (await controlUserFromCookie(request.cookies.get(CONTROL_COOKIE)?.value))) {
+    decision = { action: "allow" };
+  }
   const api = path.startsWith("/api/");
   // Map tiles are public OpenStreetMap images: the browser may cache them (set by the tile route).
   const cacheable = path.startsWith("/api/tiles/") || path === "/wagner-logo.png";

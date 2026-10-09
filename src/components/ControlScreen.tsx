@@ -386,6 +386,9 @@ export function ControlScreen({ user }: { user: ControlUser }) {
           </p>
         </div>
         <div className="control-actions">
+          <a className="control-link" href="/">
+            Board
+          </a>
           {user.admin && (
             <a className="control-link" href="/control/users">
               Users

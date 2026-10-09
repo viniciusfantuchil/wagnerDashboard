@@ -117,7 +117,7 @@ The board shows customer names, so the whole app is private (spec §8). Every pa
 2. Set it as `BOARD_ACCESS_TOKEN` in Vercel (Production and Preview) and redeploy.
 3. On the TV, open the board. It goes to `https://<board url>/login`. Type the code once. The board stores an httpOnly cookie (a hash of the code, valid 400 days). The code is never put in the address, so it does not end up in the browser history.
 
-Without the cookie, pages go to `/login` and APIs answer 401. In production, a missing or short code blocks everything (503) rather than leaving the board open. Locally, without a code, the app stays open.
+Without the cookie, pages go to `/login` and APIs answer 401. People signed in to `/control` can also open the board (the **Board** button) without the code. In production, a missing or short code blocks everything (503) rather than leaving the board open. Locally, without a code, the app stays open.
 
 To rotate: set a new code, redeploy, and type it again at `/login` on each screen. The old cookies stop working immediately.
 
