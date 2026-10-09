@@ -1,14 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FIELDS, type Field } from "@/lib/control/changes";
+import { FIELDS, type Changes, type Field } from "@/lib/control/changes";
+import { attentionCounts, attentionMatch, canStop, nextStep, readinessChips, revertOf, STOP_REASONS, statusTone, type AttentionKey } from "@/lib/control/quick";
 import type { ControlDay, ControlJob } from "@/lib/control/jobs";
 import { MIN_QUERY, NEEDS, WINDOWS, type SearchResult, type SearchWindow } from "@/lib/control/searchOptions";
 import { CREW_ORDER, crewRank } from "@/lib/crews";
 import type { ControlUser } from "@/lib/control/users";
 import { clock12, monthDay, weekdayShort } from "@/lib/time";
-
-type Save = { state: "saving" } | { state: "saved" } | { state: "error"; message: string };
 
 const CHECKS: { field: Exclude<Field, "Status" | "Note">; label: string }[] = [
   { field: "Deposit", label: "Deposit" },
@@ -49,6 +48,20 @@ function Segmented({
   );
 }
 
+/** Saves changes to the job's calendar event and returns the job as saved. */
+async function postChanges(job: ControlJob, date: string, changes: Changes): Promise<ControlJob> {
+  const res = await fetch(`/api/control/jobs/${encodeURIComponent(job.id)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ crew: job.crew, date, changes }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? `Error ${res.status}`);
+  return body.job;
+}
+
+type Saved = (job: ControlJob, before: ControlJob, changes: Changes) => void;
+
 function JobCard({
   job,
   date,
@@ -61,28 +74,32 @@ function JobCard({
   date: string;
   user: ControlUser;
   writable: boolean;
-  onSaved: (j: ControlJob) => void;
+  onSaved: Saved;
   showDate?: boolean;
 }) {
-  const [save, setSave] = useState<Save | null>(null);
+  const [open, setOpen] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState(job.values.Note ?? "");
+  const [reason, setReason] = useState("");
   useEffect(() => setNote(job.values.Note ?? ""), [job.values.Note]);
-  const busy = save?.state === "saving" || !writable;
+  const busy = saving || !writable;
+  const status = job.values.Status ?? "Scheduled";
+  const step = nextStep(status);
 
-  const send = async (changes: Partial<Record<Field, string>>) => {
-    setSave({ state: "saving" });
+  const send = async (changes: Changes) => {
+    setSaving(true);
+    setError(null);
     try {
-      const res = await fetch(`/api/control/jobs/${encodeURIComponent(job.id)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ crew: job.crew, date, changes }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error ?? `Error ${res.status}`);
-      onSaved(body.job);
-      setSave({ state: "saved" });
+      const saved = await postChanges(job, date, changes);
+      onSaved(saved, job, changes);
+      setStopping(false);
+      setReason("");
     } catch (err) {
-      setSave({ state: "error", message: err instanceof Error ? err.message : "Could not save" });
+      setError(err instanceof Error ? err.message : "Could not save");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -92,58 +109,113 @@ function JobCard({
   };
 
   return (
-    <article className="cjob" style={{ borderLeftColor: job.color ?? "var(--border)" }}>
-      <header>
-        <span className="cjob-crew">
-          <i style={{ background: job.color ?? "var(--ink-muted)" }} />
-          {job.crewShort}
+    <article className={`cjob${open ? " open" : ""}`} style={{ borderLeftColor: job.color ?? "var(--border)" }}>
+      <button type="button" className="cjob-sum" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <span className="cjob-top">
+          <span className="cjob-crew">
+            <i style={{ background: job.color ?? "var(--ink-muted)" }} />
+            {job.crewShort}
+          </span>
+          <span className="cjob-time">
+            {showDate && <b className="cjob-date">{`${weekdayShort(date)} ${monthDay(date)} · `}</b>}
+            {job.allDay ? "All day" : clock12(job.start)}
+            {job.routeOrder !== undefined ? ` · stop ${job.routeOrder}` : ""}
+          </span>
         </span>
-        <span className="cjob-time">
-          {showDate && <b className="cjob-date">{`${weekdayShort(date)} ${monthDay(date)} · `}</b>}
-          {job.allDay ? "All day" : clock12(job.start)}
-          {job.routeOrder !== undefined ? ` · stop ${job.routeOrder}` : ""}
+        <span className="cjob-name">
+          {job.customer} <small>· {job.city}</small>
         </span>
-      </header>
-      <h3>
-        {job.customer} <small>· {job.city}</small>
-      </h3>
-      <p className="cjob-what">
-        {job.service}
-        {job.size ? ` ${job.size}` : ""}
-      </p>
+        <span className="cjob-what">
+          {job.service}
+          {job.size ? ` ${job.size}` : ""}
+        </span>
+        <span className="cjob-chips">
+          <span className={`chip st-${statusTone(status)}`}>{status}</span>
+          {user.office &&
+            readinessChips(job).map((c) => (
+              <span key={c.field} className={`chip t-${c.tone}`}>
+                {c.label}
+              </span>
+            ))}
+          {job.warnings.length > 0 && <span className="chip t-warn">Calendar ⚠</span>}
+        </span>
+        {job.values.Note && !open && <span className="cjob-notetext">{job.values.Note}</span>}
+        <span className="cjob-chev" aria-hidden>
+          {open ? "▴" : "▾"}
+        </span>
+      </button>
 
-      <Segmented kind="status" options={FIELDS.Status} value={job.values.Status} disabled={busy} onPick={(v) => send({ Status: v })} />
-
-      {user.office && (
-        <div className="cjob-checks">
-          {CHECKS.map(({ field, label }) => (
-            <div key={field} className="cjob-check">
-              <span>{label}</span>
-              <Segmented options={FIELDS[field]} value={job.values[field]} disabled={busy} onPick={(v) => pickCheck(field, v)} />
-            </div>
-          ))}
+      {!open && !stopping && (step || canStop(status)) && (
+        <div className="cjob-quick">
+          {step && (
+            <button type="button" className={`q-step q-${step.label.toLowerCase()}`} disabled={busy} onClick={() => send({ Status: step.status })}>
+              {saving ? "Saving…" : step.label}
+            </button>
+          )}
+          {canStop(status) && (
+            <button type="button" className="q-stop" disabled={busy} onClick={() => setStopping(true)}>
+              Issue
+            </button>
+          )}
         </div>
       )}
 
-      <div className="cjob-note">
-        <input
-          value={note}
-          maxLength={200}
-          placeholder={job.values.Status === "Issue" ? "Why is the job stopped?" : "Note for the board"}
-          disabled={!writable}
-          onChange={(e) => setNote(e.target.value)}
-        />
-        <button type="button" disabled={busy || note.trim() === (job.values.Note ?? "")} onClick={() => send({ Note: note })}>
-          Save note
-        </button>
-      </div>
-
-      {job.warnings.length > 0 && <p className="cjob-warn">Calendar: {job.warnings.join("; ")}</p>}
-      {save && (
-        <p className={`cjob-save ${save.state}`}>
-          {save.state === "saving" ? "Saving…" : save.state === "saved" ? "Saved to the calendar ✓" : save.message}
-        </p>
+      {stopping && (
+        <div className="cjob-stop">
+          <p>Why is the job stopped?</p>
+          <div className="cjob-reasons">
+            {STOP_REASONS.map((r) => (
+              <button key={r} type="button" className={reason === r ? "on" : ""} disabled={busy} onClick={() => setReason(r)}>
+                {r}
+              </button>
+            ))}
+          </div>
+          <input value={reason} maxLength={200} placeholder="Or type the reason" onChange={(e) => setReason(e.target.value)} disabled={busy} />
+          <div className="cjob-quick">
+            <button type="button" className="q-stop on" disabled={busy || !reason.trim()} onClick={() => send({ Status: "Issue", Note: reason })}>
+              {saving ? "Saving…" : "Mark stopped"}
+            </button>
+            <button type="button" className="q-cancel" disabled={saving} onClick={() => setStopping(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
+
+      {open && (
+        <div className="cjob-edit">
+          <Segmented kind="status" options={FIELDS.Status} value={job.values.Status} disabled={busy} onPick={(v) => send({ Status: v })} />
+
+          {user.office && (
+            <div className="cjob-checks">
+              {CHECKS.map(({ field, label }) => (
+                <div key={field} className="cjob-check">
+                  <span>{label}</span>
+                  <Segmented options={FIELDS[field]} value={job.values[field]} disabled={busy} onPick={(v) => pickCheck(field, v)} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="cjob-note">
+            <input
+              value={note}
+              maxLength={200}
+              placeholder={job.values.Status === "Issue" ? "Why is the job stopped?" : "Note for the board"}
+              disabled={!writable}
+              onChange={(e) => setNote(e.target.value)}
+            />
+            <button type="button" disabled={busy || note.trim() === (job.values.Note ?? "")} onClick={() => send({ Note: note })}>
+              Save note
+            </button>
+          </div>
+
+          {job.warnings.length > 0 && <p className="cjob-warn">Calendar: {job.warnings.join("; ")}</p>}
+          {saving && <p className="cjob-save">Saving…</p>}
+        </div>
+      )}
+
+      {error && <p className="cjob-save error">{error}</p>}
     </article>
   );
 }
@@ -178,6 +250,13 @@ export function ControlScreen({ user }: { user: ControlUser }) {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchBox = useRef<HTMLInputElement>(null);
+  const [focus, setFocus] = useState<AttentionKey | null>(null);
+  const [toast, setToast] = useState<{ id: number; text: string; undo?: () => void; error?: boolean } | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast((cur) => (cur?.id === toast.id ? null : cur)), 6000);
+    return () => clearTimeout(t);
+  }, [toast]);
   const searchActive = q.trim().length >= MIN_QUERY || !!status || !!needs;
 
   const load = useCallback(async () => {
@@ -242,6 +321,33 @@ export function ControlScreen({ user }: { user: ControlUser }) {
     setDays((ds) => ds?.map((d) => (d.date === date ? { ...d, jobs: d.jobs.map((j) => (j.id === job.id ? job : j)) } : d)) ?? ds);
     setFound((f) => f && { ...f, results: f.results.map((r) => (r.job.id === job.id && r.date === date ? { ...r, job } : r)) });
   };
+
+  /** After a save: update the card, and offer Undo for a few seconds. */
+  const saved = (date: string, job: ControlJob, before: ControlJob, changes: Changes) => {
+    replace(date, job);
+    const what = Object.entries(changes)
+      .map(([f, v]) => (f === "Note" ? (v ? "note saved" : "note cleared") : f === "Status" ? v : `${f === "Confirm48" ? "48h" : f} ${v}`))
+      .join(", ");
+    const revert = revertOf(before, changes);
+    const id = Date.now();
+    setToast({
+      id,
+      text: `${job.customer}: ${what}. Saved to the calendar.`,
+      undo:
+        Object.keys(revert).length > 0
+          ? async () => {
+              setToast({ id: id + 1, text: "Undoing…" });
+              try {
+                replace(date, await postChanges(job, date, revert));
+                setToast({ id: id + 2, text: `${job.customer}: change undone.` });
+              } catch (err) {
+                setToast({ id: id + 2, text: err instanceof Error ? err.message : "Could not undo", error: true });
+              }
+            }
+          : undefined,
+    });
+  };
+
   const clear = () => {
     setQ("");
     setStatus("");
@@ -249,8 +355,17 @@ export function ControlScreen({ user }: { user: ControlUser }) {
   };
   const ofCrew = (j: ControlJob) => !crew || crewRank(j.crew) === CREW_ORDER.indexOf(crew);
   const card = (j: ControlJob, date: string, showDate = false) => (
-    <JobCard key={`${date}-${j.id}`} job={j} date={date} user={user} writable={writable} showDate={showDate} onSaved={(job) => replace(date, job)} />
+    <JobCard
+      key={`${date}-${j.id}`}
+      job={j}
+      date={date}
+      user={user}
+      writable={writable}
+      showDate={showDate}
+      onSaved={(job, before, changes) => saved(date, job, before, changes)}
+    />
   );
+  const attention = days ? attentionCounts(days.map((d) => ({ ...d, jobs: d.jobs.filter(ofCrew) })), user.office) : [];
 
   return (
     <div className="control-page">
@@ -356,8 +471,31 @@ export function ControlScreen({ user }: { user: ControlUser }) {
         ) : (
           <>
             {!days && !error && <p className="control-empty">Loading…</p>}
+            {days && (
+              <nav className="control-attn" aria-label="Needs attention">
+                <span className="control-attn-title">Needs attention</span>
+                {attention.length === 0 && <span className="chip t-ok">All set for today and the next workday ✓</span>}
+                {attention.map((a) => (
+                  <button
+                    key={a.key}
+                    type="button"
+                    className={`chip t-${a.tone}${focus === a.key ? " on" : ""}`}
+                    aria-pressed={focus === a.key}
+                    onClick={() => setFocus((f) => (f === a.key ? null : a.key))}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+                {focus && (
+                  <button type="button" className="control-attn-all" onClick={() => setFocus(null)}>
+                    Show all jobs
+                  </button>
+                )}
+              </nav>
+            )}
             {days?.map((d, i) => {
-              const jobs = d.jobs.filter(ofCrew);
+              const jobs = d.jobs.filter(ofCrew).filter((j) => !focus || attentionMatch(focus, j, i > 0));
+              if (focus && jobs.length === 0) return null;
               return (
                 <section key={d.date} className="control-day">
                   <h2>
@@ -372,6 +510,17 @@ export function ControlScreen({ user }: { user: ControlUser }) {
           </>
         )}
       </div>
+
+      {toast && (
+        <div className={`control-toast${toast.error ? " error" : ""}`} role="status">
+          <span>{toast.text}</span>
+          {toast.undo && (
+            <button type="button" onClick={toast.undo}>
+              Undo
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

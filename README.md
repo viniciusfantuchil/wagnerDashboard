@@ -68,6 +68,10 @@ Job and visit addresses are placed on the map on the server, with the free **US 
 | Office | Status, Deposit, Permit, Material, 48-hour confirmation and Note, on every crew's jobs |
 | Crew lead | Status and Note, on their own crew's jobs |
 
+**Cards.** Each job is a short card: crew, time, customer and city, service, and chips for status and (office) Deposit, Permit, Material and 48-h confirmation. A chip always says its state in words (`Deposit ✓`, `Deposit ?`, `Deposit pending`); an unknown deposit is never shown as OK (D-003). One button does the usual next step (**Start**, **Done** or **Resume**); **Issue** asks why, with one-tap reasons, and saves the status and note together. Tapping the card opens the full editor. After every save a message offers **Undo** for a few seconds.
+
+**Needs attention.** Above the cards, one chip per open item for today and the next workday, like the TV alerts: stopped jobs, deposit pending (or unknown), and for the next workday 48-h confirmation, material and permit pending. Crew leads see only stopped jobs. Tapping a chip shows just those jobs.
+
 **Search.** The search bar finds jobs by customer, city, service, crew or note (every word must match; accents and case don't matter). It looks at the next 180 days by default, or the past 180 days, or both. Filters narrow the list by crew, status or a readiness item that is still pending (office only; an unknown deposit counts as pending, D-003). Each result is the same card, so a job can be updated from the search. On a computer, `/` jumps to the search bar and the cards sit side by side. Crew leads see only their own crew's jobs.
 
 **Sign-in.** People sign in at `https://<board url>/control` with a username and password.
