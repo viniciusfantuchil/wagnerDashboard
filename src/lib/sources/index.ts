@@ -11,7 +11,7 @@ export interface Sources {
   schedule: ScheduleSource;
   weather: WeatherSource;
   geocoder?: Geocoder;
-  /** True when GOOGLE_MAPS_API_KEY is set: the board map uses Google Maps under the pins. */
+  /** True to draw OpenStreetMap under the pins; false keeps the prototype's schematic map. */
   mapImage?: boolean;
   office?: { lat: number; lon: number };
 }
@@ -53,7 +53,7 @@ export function getSources(today: string, env: Env = process.env): Sources {
       schedule: new SampleScheduleSource(today),
       weather: new SampleWeatherSource(),
       geocoder: OFFLINE_GEOCODER,
-      mapImage: Boolean(env.GOOGLE_MAPS_API_KEY),
+      mapImage: env.MAP_STYLE === "osm",
       office: office(env),
     };
   }
@@ -69,7 +69,7 @@ export function getSources(today: string, env: Env = process.env): Sources {
     schedule: calendarSource.source,
     weather: nws(env),
     geocoder: census,
-    mapImage: Boolean(env.GOOGLE_MAPS_API_KEY),
+    mapImage: env.MAP_STYLE !== "schematic",
     office: office(env),
   };
 }

@@ -1,6 +1,6 @@
 // Schematic Brevard County map from the prototype. Kept until the map provider is decided (spec §12).
 
-import { MAP_H, MAP_W, mapImagePath, project } from "@/lib/geo/staticMap";
+import { MAP_H, MAP_W, project, TILE_SIZE, tilePath, tilesFor } from "@/lib/geo/basemap";
 import type { Board, BoardJob, BoardVisit } from "@/lib/types";
 import { statusKey } from "./status";
 
@@ -95,10 +95,10 @@ export function BoardMap({ jobs, visits }: { jobs: BoardJob[]; visits: BoardVisi
 }
 
 /**
- * Google Maps basemap (served by /api/map) with the board's own pins on top, in the image's projection.
+ * OpenStreetMap basemap (tiles served by /api/tiles) with the board's own pins on top, in the tiles' projection.
  * Pins keep the status colors and numbers of the schematic map.
  */
-export function GoogleBoardMap({ map, jobs, visits }: { map: NonNullable<Board["map"]>; jobs: BoardJob[]; visits: BoardVisit[] }) {
+export function TileBoardMap({ map, jobs, visits }: { map: NonNullable<Board["map"]>; jobs: BoardJob[]; visits: BoardVisit[] }) {
   const shownVisits = placed(visits);
   const shownJobs = placed(jobs);
   const at = spread([...shownVisits, ...shownJobs].map((i) => project(i.lat, i.lon, map)), 16, 15);
@@ -112,7 +112,9 @@ export function GoogleBoardMap({ map, jobs, visits }: { map: NonNullable<Board["
       role="img"
       aria-label="Map of Brevard County with today's jobs and estimate visits"
     >
-      <image href={mapImagePath(map)} x={0} y={0} width={MAP_W} height={MAP_H} />
+      {tilesFor(map).map((t) => (
+        <image key={tilePath(t)} href={tilePath(t)} x={t.left} y={t.top} width={TILE_SIZE} height={TILE_SIZE} />
+      ))}
       <g className="hq">
         <rect x={hx - 11} y={hy - 7} width={22} height={14} rx={2} />
         <text x={hx} y={hy}>HQ</text>
@@ -135,6 +137,9 @@ export function GoogleBoardMap({ map, jobs, visits }: { map: NonNullable<Board["
           </g>
         );
       })}
+      <text className="attribution" x={MAP_W - 3} y={MAP_H - 3} textAnchor="end">
+        © OpenStreetMap contributors
+      </text>
     </svg>
   );
 }

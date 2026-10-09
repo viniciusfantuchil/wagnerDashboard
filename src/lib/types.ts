@@ -94,7 +94,7 @@ export interface Board {
   alerts: Alert[]; // all alerts, ranked; the screen shows the first 6
   nextWorkday: { date: string; rows: ReadyRow[] };
   bookedThrough: string | null;
-  /** Google basemap view, or null to draw the schematic map (no GOOGLE_MAPS_API_KEY). */
+  /** OpenStreetMap basemap view, or null to draw the prototype's schematic map (sample data). */
   map: { lat: number; lon: number; zoom: number; office: { lat: number; lon: number } } | null;
   sources: { schedule: string; weather: string; sample: boolean };
 }

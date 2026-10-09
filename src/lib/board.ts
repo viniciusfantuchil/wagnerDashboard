@@ -1,6 +1,6 @@
 import { crewRank } from "@/lib/crews";
 import { locateAll } from "@/lib/geo/geocode";
-import { fitView } from "@/lib/geo/staticMap";
+import { fitView } from "@/lib/geo/basemap";
 import { buildAlerts } from "@/lib/rules/alerts";
 import { nextWorkday, readyRows } from "@/lib/rules/readiness";
 import { getSources, OFFLINE_GEOCODER, type Sources } from "@/lib/sources";

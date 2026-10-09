@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { MAX_ALERTS, RAIN_ALERT_PCT, rainSummary } from "@/lib/rules/alerts";
 import { clock12, clockParts, hourRange, hourShort, minuteOfDay, monthDay, TZ, weekdayShort } from "@/lib/time";
 import type { Board, Check } from "@/lib/types";
-import { BoardMap, GoogleBoardMap } from "./BoardMap";
+import { BoardMap, TileBoardMap } from "./BoardMap";
 import { STATUS_LABEL, statusKey } from "./status";
 
 const REFRESH_MS = 5 * 60_000;
@@ -184,7 +184,7 @@ export function BoardScreen({ initial }: { initial: Board }) {
             </div>
             <div className="map-wrap">
               {board.map ? (
-                <GoogleBoardMap map={board.map} jobs={jobs} visits={visits} />
+                <TileBoardMap map={board.map} jobs={jobs} visits={visits} />
               ) : (
                 <BoardMap jobs={jobs} visits={visits} />
               )}

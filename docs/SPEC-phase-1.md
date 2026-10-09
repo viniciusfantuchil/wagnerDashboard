@@ -149,7 +149,7 @@ Order alerts with Deposit (D-003) first, then the other danger alerts, then warn
 ```
 GOOGLE_SERVICE_ACCOUNT_JSON=      # base64 of the key file
 CALENDAR_IDS=                     # JSON map: {"Crew 1 · Fernando": "...@group.calendar.google.com", ...}
-MAPBOX_TOKEN=                     # or GOOGLE_MAPS_API_KEY
+MAP_STYLE=                        # optional: "schematic" to use the drawn map instead of OpenStreetMap
 KV_REST_API_URL= / KV_REST_API_TOKEN=
 BOARD_ACCESS_TOKEN=
 HQ_LAT= / HQ_LON=
@@ -174,6 +174,6 @@ A mini PC or Raspberry Pi 5 running Chromium in kiosk mode, starting on boot, po
 ## 12. Open items
 
 - Approve the calendar convention (section 6) with Diandra and Carlos.
-- ~~Decide the map provider~~ Google Maps (Static API basemap, decided 2026-10-09). Create the key in the company's Google Cloud project.
+- ~~Decide the map provider~~ OpenStreetMap tiles through the board's server (decided 2026-10-09). No account needed; Google Maps was dropped because it requires a billing account.
 - Request Markate API access (api@markate.com) for Phase 2.
 - Confirm whether crews work Saturdays (affects "next workday").

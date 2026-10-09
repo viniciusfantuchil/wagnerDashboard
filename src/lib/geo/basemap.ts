@@ -1,10 +1,11 @@
-// Google Maps Static API basemap for the board map, with our own pins drawn on top.
-// The image is fetched by the server (GET /api/map), so the API key never reaches the browser (spec §4, §8).
-// Pin positions use the same Web Mercator projection as the image.
+// OpenStreetMap basemap for the board map, with our own pins drawn on top. No account or key.
+// Tiles are fetched by the server (GET /api/tiles/z/x/y) and cached, so the browser only talks to the board
+// (spec §4) and the OpenStreetMap tile servers see one light, identified client (their tile usage policy).
+// Pin positions use the same Web Mercator projection as the tiles.
 
 import type { Point } from "./geocode";
 
-/** Map image size in Google "logical" pixels. Requested at scale=2, shown at ~506×753 on the 1920×1080 stage. */
+/** Map size in tile pixels; shown at ~506×753 on the 1920×1080 stage (tiles drawn ~1.25× for TV legibility). */
 export const MAP_W = 404;
 export const MAP_H = 600;
 export const MIN_ZOOM = 8;
@@ -13,7 +14,7 @@ export const MAX_ZOOM = 14;
 const PAD = 36;
 const TILE = 256;
 
-/** Brevard County and surroundings; requests outside this box are refused by /api/map. */
+/** Brevard County and surroundings; tiles outside this box are refused by /api/tiles. */
 const REGION = { latMin: 27.5, latMax: 29.0, lonMin: -81.3, lonMax: -80.2 };
 
 export interface MapView {
@@ -62,33 +63,45 @@ export function fitView(points: Point[], office: Point): MapView {
   return { lat: round(c.lat, 4), lon: round(c.lon, 4), zoom };
 }
 
-/** Validates /api/map query parameters; null if they are not a view the board would ask for. */
-export function parseView(params: URLSearchParams): MapView | null {
-  const lat = Number(params.get("lat"));
-  const lon = Number(params.get("lon"));
-  const zoom = Number(params.get("z"));
-  if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isInteger(zoom)) return null;
-  if (lat < REGION.latMin || lat > REGION.latMax || lon < REGION.lonMin || lon > REGION.lonMax) return null;
-  if (zoom < MIN_ZOOM || zoom > MAX_ZOOM) return null;
-  return { lat: round(lat, 4), lon: round(lon, 4), zoom };
+export interface Tile {
+  z: number;
+  x: number;
+  y: number;
+  /** Top-left corner on the map, in map pixels. */
+  left: number;
+  top: number;
 }
 
-/** The board's own URL for the basemap image. */
-export function mapImagePath(view: MapView): string {
-  return `/api/map?lat=${view.lat}&lon=${view.lon}&z=${view.zoom}`;
+/** The OpenStreetMap tiles that cover the map for a view. */
+export function tilesFor(view: MapView): Tile[] {
+  const [cx, cy] = world(view.lat, view.lon, view.zoom);
+  const x0 = cx - MAP_W / 2;
+  const y0 = cy - MAP_H / 2;
+  const tiles: Tile[] = [];
+  for (let ty = Math.floor(y0 / TILE); ty * TILE < y0 + MAP_H; ty++) {
+    for (let tx = Math.floor(x0 / TILE); tx * TILE < x0 + MAP_W; tx++) {
+      tiles.push({ z: view.zoom, x: tx, y: ty, left: tx * TILE - x0, top: ty * TILE - y0 });
+    }
+  }
+  return tiles;
 }
 
-/** Google Maps Static API URL. Points of interest and transit are hidden to keep the map calm on a TV. */
-export function staticMapUrl(view: MapView, key: string): string {
-  const params = new URLSearchParams({
-    center: `${view.lat},${view.lon}`,
-    zoom: String(view.zoom),
-    size: `${MAP_W}x${MAP_H}`,
-    scale: "2",
-    maptype: "roadmap",
-    key,
-  });
-  params.append("style", "feature:poi|visibility:off");
-  params.append("style", "feature:transit|visibility:off");
-  return `https://maps.googleapis.com/maps/api/staticmap?${params}`;
+export const TILE_SIZE = TILE;
+
+/** True for tiles the board can ask for: zoom 8–14, inside Brevard (with a margin of one tile). */
+export function isBoardTile(z: number, x: number, y: number): boolean {
+  if (![z, x, y].every(Number.isInteger) || z < MIN_ZOOM || z > MAX_ZOOM) return false;
+  const [xMin, yMin] = world(REGION.latMax, REGION.lonMin, z).map((v) => Math.floor(v / TILE) - 1);
+  const [xMax, yMax] = world(REGION.latMin, REGION.lonMax, z).map((v) => Math.floor(v / TILE) + 1);
+  return x >= xMin && x <= xMax && y >= yMin && y <= yMax;
+}
+
+/** The board's own URL for a tile. */
+export function tilePath(t: { z: number; x: number; y: number }): string {
+  return `/api/tiles/${t.z}/${t.x}/${t.y}`;
+}
+
+/** Upstream OpenStreetMap tile URL. */
+export function osmTileUrl(z: number, x: number, y: number): string {
+  return `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
 }
