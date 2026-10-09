@@ -199,22 +199,33 @@ describe("estimate visits", () => {
   });
 });
 
-describe("status by event color", () => {
+describe("status from the description", () => {
   it.each([
     [undefined, "scheduled"],
-    ["9", "scheduled"],
-    ["5", "in_progress"],
-    ["7", "completed"],
-    ["11", "issue"],
-    ["8", "postponed"],
-  ] as const)("colorId %j → %s", (colorId, status) => {
-    expect(job({ colorId }).status).toBe(status);
+    ["Scheduled", "scheduled"],
+    ["In progress", "in_progress"],
+    ["IN-PROGRESS", "in_progress"],
+    ["started", "in_progress"],
+    ["Issue", "issue"],
+    ["Stopped", "issue"],
+    ["Done", "completed"],
+    ["Completed", "completed"],
+    ["Postponed", "postponed"],
+  ] as const)("Status: %j → %s", (value, status) => {
+    const description = value === undefined ? FULL_DESCRIPTION : `${FULL_DESCRIPTION}\nStatus: ${value}`;
+    expect(job({ description }).status).toBe(status);
   });
 
-  it("treats other colors as scheduled, with a warning", () => {
-    const j = job({ colorId: "3" });
+  it("treats an unknown value as scheduled, with a warning", () => {
+    const j = job({ description: `${FULL_DESCRIPTION}\nStatus: maybe tomorrow` });
     expect(j.status).toBe("scheduled");
-    expect(j.parseWarnings).toEqual([WARN.color]);
+    expect(j.parseWarnings).toEqual(['Unrecognized Status value "maybe tomorrow"']);
+  });
+
+  it.each(["11", "7", "5", "8", "3"])("ignores the event color (colorId %s identifies the crew)", (colorId) => {
+    const j = job({ colorId });
+    expect(j.status).toBe("scheduled");
+    expect(j.parseWarnings).toEqual([]);
   });
 });
 
