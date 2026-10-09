@@ -124,7 +124,8 @@ export function BoardScreen({ initial }: { initial: Board }) {
     if (!st) return;
     let fs = BASE_FS;
     st.style.setProperty("--fs", `${fs}px`);
-    const over = () => [...st.querySelectorAll<HTMLElement>(".panel")].some((p) => p.scrollHeight > p.clientHeight + 1);
+    // Panels, and the job list inside Today's Jobs (it flexes, so its rows can overrun the sections below it).
+    const over = () => [...st.querySelectorAll<HTMLElement>(".panel, .jobs")].some((p) => p.scrollHeight > p.clientHeight + 1);
     while (over() && fs > MIN_FS) {
       fs -= 0.5;
       st.style.setProperty("--fs", `${fs}px`);
@@ -251,7 +252,7 @@ export function BoardScreen({ initial }: { initial: Board }) {
                 return (
                   <div
                     key={j.id}
-                    className={`job ${j.status === "issue" ? "flag-issue" : ""}`}
+                    className={`job${j.status === "issue" ? " flag-issue" : ""}${j.note ? " has-note" : ""}`}
                     style={{ "--crew": crewColor(j.crew) ?? "transparent" } as React.CSSProperties}
                   >
                     <span className={`num s-${k}`}>{j.pin}</span>
@@ -272,13 +273,8 @@ export function BoardScreen({ initial }: { initial: Board }) {
                       {j.size ? ` ${j.size}` : ""}
                       {j.day ? ` · day ${j.day.n} of ${j.day.of}` : ""}
                       {j.routeOrder ? ` · route stop ${j.routeOrder}` : ""}
-                      {j.note ? (
-                        <>
-                          {" · "}
-                          <em>{j.note}</em>
-                        </>
-                      ) : null}
                     </span>
+                    {j.note && <span className="note">{j.note}</span>}
                     <span className="tags">
                       <span className={`chip c-${k}`}>{STATUS_LABEL[j.status]}</span>
                       <DepositChip v={j.deposit} />
