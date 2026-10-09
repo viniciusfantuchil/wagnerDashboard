@@ -138,7 +138,7 @@ Order alerts with Deposit (D-003) first, then the other danger alerts, then warn
 | Sealing or excavation today with ≥ 40% rain during the job window | warning | Weather |
 | Next-workday job with `confirm48 = missing` | warning | Customer · cite D-007 |
 | Next-workday job with `permit = missing` or `material = missing` | warning | Permit / Material |
-| Event today or next workday with parse warnings (no address, unknown deposit) | warning | Calendar · "Fix the event so the board can read it" |
+| Event today or next workday with parse warnings (no address, unknown deposit) | warning | Calendar · "Fix the event so the board can read it". Two or more such events are grouped into one alert, "N events to fix in the calendar", listing each problem with its jobs (no Deposit line first), so they don't push the operational alerts off the screen. |
 
 ## 8. Security and privacy
 

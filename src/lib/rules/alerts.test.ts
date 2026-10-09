@@ -224,6 +224,25 @@ describe("Calendar", () => {
     const [a] = alerts({ nextWorkday: { date: NEXT, jobs: [j] } });
     expect(a).toMatchObject({ label: "Calendar", title: "Mon · Fairbanks: no address" });
   });
+
+  it("groups several unreadable events into one alert, problems most important first, so real alerts stay on screen", () => {
+    const today = [
+      job({ pin: 1, customer: "Garrett", deposit: "unknown", parseWarnings: ["Deposit status not found"] }),
+      job({ pin: 3, customer: "Halfhide", parseWarnings: ["No address"] }),
+      job({ pin: 5, customer: "Spring", parseWarnings: ["Payment text in title"] }),
+      job({ pin: 2, customer: "Schiedel", deposit: "unknown", parseWarnings: ["Deposit status not found", 'Unrecognized Material value "yes"'] }),
+      job({ pin: 4, customer: "Nguyen", status: "issue", note: "Material not delivered" }),
+    ];
+    const next = job({ date: NEXT, customer: "Pereira", deposit: "unknown", parseWarnings: ["Deposit status not found"] });
+    const out = alerts({ today, nextWorkday: { date: NEXT, jobs: [next] } });
+    expect(out.map((a) => a.label)).toEqual(["Stopped", "Calendar"]);
+    expect(out[1]).toEqual({
+      severity: "warning",
+      label: "Calendar",
+      title: "5 events to fix in the calendar",
+      text: "no Deposit line: #1 Garrett, #2 Schiedel, Mon · Pereira · payment text in title: #5 Spring · no address: #3 Halfhide · Material unreadable: #2 Schiedel",
+    });
+  });
 });
 
 describe("ordering", () => {

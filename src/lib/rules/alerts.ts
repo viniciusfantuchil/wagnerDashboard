@@ -137,19 +137,60 @@ export function buildAlerts({ today, nextWorkday, hourly }: AlertInput): Alert[]
     }
   }
 
-  // Calendar: events the parser could not fully read.
-  for (const { job, name } of both) {
-    if (job.parseWarnings.length > 0) {
-      add(job, {
+  // Calendar: events the parser could not fully read. One event gets its own alert; several are grouped into one,
+  // so they don't push the operational alerts (deposit, stopped, weather, customer) off the screen.
+  const unreadable = both.filter(({ job }) => job.parseWarnings.length > 0);
+  if (unreadable.length === 1) {
+    const { job, name } = unreadable[0];
+    add(job, {
+      severity: "warning",
+      label: "Calendar",
+      title: `${name}: ${job.parseWarnings.map(lowerFirst).join("; ")}`,
+      text: "Fix the event so the board can read it.",
+    });
+  } else if (unreadable.length > 1) {
+    out.push({
+      alert: {
         severity: "warning",
         label: "Calendar",
-        title: `${name}: ${job.parseWarnings.map(lowerFirst).join("; ")}`,
-        text: "Fix the event so the board can read it.",
-      });
-    }
+        title: `${unreadable.length} events to fix in the calendar`,
+        text: calendarSummary(unreadable),
+      },
+      start: unreadable.map(({ job }) => job.start).sort()[0],
+    });
   }
 
   return rankAlerts(out);
+}
+
+/** Short problem names for the grouped Calendar alert, most important first. */
+const CALENDAR_PROBLEMS: [RegExp, string][] = [
+  [/^Deposit status not found/, "no Deposit line"],
+  [/^Unrecognized Deposit value/, "Deposit unreadable"],
+  [/^Payment text in title/, "payment text in title"],
+  [/^No address/, "no address"],
+  [/^No street address/, "no street address"],
+  [/^City not found/, "city not found"],
+  [/^Title not in/, "title format"],
+  [/^Unrecognized (\w+) value/, "$1 unreadable"],
+];
+
+/** "no Deposit line: #1 Garrett, #2 Schiedel · no address: #3 Halfhide" */
+export function calendarSummary(items: { job: RuleJob; name: string }[]): string {
+  const groups = new Map<string, { rank: number; names: string[] }>();
+  for (const { job, name } of items) {
+    for (const w of job.parseWarnings) {
+      const i = CALENDAR_PROBLEMS.findIndex(([re]) => re.test(w));
+      const label = i === -1 ? lowerFirst(w) : w.replace(new RegExp(`^${CALENDAR_PROBLEMS[i][0].source}.*$`), CALENDAR_PROBLEMS[i][1]);
+      const g = groups.get(label) ?? { rank: i === -1 ? CALENDAR_PROBLEMS.length : i, names: [] };
+      if (!g.names.includes(name)) g.names.push(name);
+      groups.set(label, g);
+    }
+  }
+  return [...groups.entries()]
+    .sort((a, b) => a[1].rank - b[1].rank)
+    .map(([label, g]) => `${label}: ${g.names.join(", ")}`)
+    .join(" · ");
 }
 
 /** Deposit (D-003) first, then other danger, then warning; within each group by start time. Ties keep rule order. */
