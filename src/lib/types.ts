@@ -31,6 +31,7 @@ export interface Visit {
   start: string;
   allDay?: true;
   customer: string;
+  address?: string; // server only: never rendered on screen
   city: string;
   lat?: number;
   lon?: number;
@@ -63,11 +64,13 @@ export interface Alert {
 /** A job on today's board, with the number shown on its pin and card. The street address stays on the server. */
 export interface BoardJob extends Omit<Job, "address"> {
   pin: number;
+  approx?: true; // map position is the city center, not the street address
 }
 
 /** A visit on today's board, with its map key (K1, K2, ...). */
-export interface BoardVisit extends Visit {
+export interface BoardVisit extends Omit<Visit, "address"> {
   key: string;
+  approx?: true;
 }
 
 export interface ReadyRow {

@@ -190,6 +190,7 @@ export function parseEvent(event: CalendarEvent, crew: string, onDate?: string):
         start: when.start,
         ...(when.allDay ? { allDay: true } : {}),
         customer: customer.trim() || "Estimate",
+        ...(loc.address ? { address: loc.address } : {}),
         city: loc.city,
         service: rest.join(" – ").trim() || "Estimate",
       },

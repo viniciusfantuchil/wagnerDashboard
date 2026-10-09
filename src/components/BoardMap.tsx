@@ -26,10 +26,35 @@ const HQ: LatLon = [28.35, -80.748];
 const placed = <T extends { lat?: number; lon?: number }>(items: T[]) =>
   items.filter((i): i is T & { lat: number; lon: number } => i.lat !== undefined && i.lon !== undefined);
 
+const MIN_GAP = 26; // px in map units; pins closer than this are fanned out
+const FAN_RADIUS = 24;
+
+/** Map positions, with pins that would overlap (e.g. several jobs at one city center) fanned out around it. */
+export function spread(points: [number, number][]): [number, number][] {
+  const out: [number, number][] = [];
+  const crowd = new Map<number, number>(); // index of the first pin at a spot → pins already fanned around it
+  points.forEach(([x, y]) => {
+    const anchor = out.findIndex(([ox, oy]) => Math.hypot(ox - x, oy - y) < MIN_GAP);
+    if (anchor === -1) {
+      out.push([x, y]);
+      return;
+    }
+    const n = (crowd.get(anchor) ?? 0) + 1;
+    crowd.set(anchor, n);
+    const angle = (n - 1) * (Math.PI / 3) - Math.PI / 2;
+    const ring = FAN_RADIUS * (1 + Math.floor((n - 1) / 6));
+    out.push([out[anchor][0] + ring * Math.cos(angle), out[anchor][1] + ring * Math.sin(angle)]);
+  });
+  return out;
+}
+
 export function BoardMap({ jobs, visits }: { jobs: BoardJob[]; visits: BoardVisit[] }) {
   const [ix, iy] = P(28.45, -80.835);
   const [ox, oy] = P(28.25, -80.535);
   const [hx, hy] = P(...HQ);
+  const shownVisits = placed(visits);
+  const shownJobs = placed(jobs);
+  const at = spread([...shownVisits, ...shownJobs].map((i) => P(i.lat, i.lon)));
   return (
     <svg id="map" viewBox="0 0 538 1000" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Schematic map of Brevard County with today's jobs and estimate visits">
       <path className="water" d={`${seg([...coast, [27.94, -80.48], [28.66, -80.48]])}Z`} />
@@ -46,19 +71,19 @@ export function BoardMap({ jobs, visits }: { jobs: BoardJob[]; visits: BoardVisi
         <rect x={hx - 17} y={hy - 11} width={34} height={22} rx={3} />
         <text x={hx} y={hy}>HQ</text>
       </g>
-      {placed(visits).map((v) => {
-        const [x, y] = P(v.lat, v.lon);
+      {shownVisits.map((v, i) => {
+        const [x, y] = at[i];
         return (
-          <g key={v.id} className="visit">
+          <g key={v.id} className={`visit${v.approx ? " approx" : ""}`}>
             <rect x={x - 12} y={y - 12} width={24} height={24} transform={`rotate(45 ${x} ${y})`} />
             <text x={x} y={y}>{v.key}</text>
           </g>
         );
       })}
-      {placed(jobs).map((j) => {
-        const [x, y] = P(j.lat, j.lon);
+      {shownJobs.map((j, i) => {
+        const [x, y] = at[shownVisits.length + i];
         return (
-          <g key={j.id} className={`pin s-${statusKey(j.status)}`}>
+          <g key={j.id} className={`pin s-${statusKey(j.status)}${j.approx ? " approx" : ""}`}>
             <circle cx={x} cy={y} r={15} />
             <text x={x} y={y}>{j.pin}</text>
           </g>

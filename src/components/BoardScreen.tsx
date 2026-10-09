@@ -192,6 +192,9 @@ export function BoardScreen({ initial }: { initial: Board }) {
               <span><i style={{ background: "var(--red)" }} />Issue</span>
               <span><i style={{ background: "var(--ink-muted)" }} />Postponed</span>
               <span><i className="dia" />Estimate visit</span>
+              {[...jobs, ...visits].some((i) => i.approx) && (
+                <span><i className="approx" />Approx. location</span>
+              )}
             </div>
           </section>
 

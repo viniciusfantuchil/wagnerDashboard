@@ -170,3 +170,5 @@ footer .src.stale{color:var(--red);font-weight:600}
 .board-error{font-family:var(--body);color:var(--ink);text-align:center}
 .board-error h1{font-family:var(--display);font-size:48px;text-transform:uppercase;margin:0 0 12px}
 .board-error p{color:var(--ink-muted);font-size:22px;margin:0}
+.pin.approx circle,.visit.approx rect{stroke-dasharray:4 3}
+.legend .approx{display:inline-block;width:.9em;height:.9em;border-radius:50%;border:2px dashed var(--ink-muted);vertical-align:-.1em;margin-right:5px}

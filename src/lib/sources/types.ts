@@ -1,5 +1,7 @@
 import type { Job, Visit, Weather } from "@/lib/types";
 
+export type { Geocoder } from "@/lib/geo/geocode";
+
 /**
  * Where the crew schedule comes from. Phase 1: Google Calendar. Phase 2/3: Markate work orders.
  * The screen only sees the Board built from this, so a source can be swapped without touching the UI.

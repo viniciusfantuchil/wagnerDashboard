@@ -1,10 +1,22 @@
+import { CachedGeocoder, CensusGeocoder, type Geocoder } from "@/lib/geo/geocode";
 import { CALENDAR_READONLY, parseServiceAccount, ServiceAccountAuth } from "@/lib/google/auth";
 import { GoogleCalendarSource, parseCalendarIds } from "./calendar";
 import { SampleScheduleSource, SampleWeatherSource } from "./sample";
 import type { ScheduleSource, WeatherSource } from "./types";
 import { NwsWeatherSource } from "./weather";
 
-export type { ScheduleSource, WeatherSource } from "./types";
+export type { Geocoder, ScheduleSource, WeatherSource } from "./types";
+
+export interface Sources {
+  schedule: ScheduleSource;
+  weather: WeatherSource;
+  geocoder?: Geocoder;
+}
+
+/** Places nothing by street address; items fall back to their city center. */
+export const OFFLINE_GEOCODER: Geocoder = { label: "none", geocode: async () => null };
+
+let census: CachedGeocoder | null = null;
 
 type Env = Record<string, string | undefined>;
 
@@ -27,10 +39,12 @@ function nws(env: Env): NwsWeatherSource {
  * otherwise the prototype's sample data. Live schedules get the live NWS forecast; sample schedules keep the
  * sample weather so the board still matches the prototype.
  */
-export function getSources(today: string, env: Env = process.env): { schedule: ScheduleSource; weather: WeatherSource } {
+export function getSources(today: string, env: Env = process.env): Sources {
   const key = env.GOOGLE_SERVICE_ACCOUNT_JSON;
   const ids = env.CALENDAR_IDS;
-  if (!key || !ids) return { schedule: new SampleScheduleSource(today), weather: new SampleWeatherSource() };
+  if (!key || !ids) {
+    return { schedule: new SampleScheduleSource(today), weather: new SampleWeatherSource(), geocoder: OFFLINE_GEOCODER };
+  }
 
   // Reuse the source between requests so the access token is cached.
   const cacheKey = `${key}\n${ids}`;
@@ -38,5 +52,6 @@ export function getSources(today: string, env: Env = process.env): { schedule: S
     const auth = new ServiceAccountAuth(parseServiceAccount(key), CALENDAR_READONLY);
     calendarSource = { key: cacheKey, source: new GoogleCalendarSource(parseCalendarIds(ids), auth) };
   }
-  return { schedule: calendarSource.source, weather: nws(env) };
+  census ??= new CachedGeocoder(new CensusGeocoder());
+  return { schedule: calendarSource.source, weather: nws(env), geocoder: census };
 }

@@ -191,7 +191,7 @@ describe("estimate visits", () => {
     ["EST – Romano", "Romano", "Estimate"],
   ])("reads %j", (summary, customer, service) => {
     const v = visit({ summary, location: "55 Ocean Blvd, Cocoa Beach, FL 32931", start: { dateTime: "2026-10-09T16:00:00-04:00" } });
-    expect(v).toEqual({ id: "evt1", start: "2026-10-09T16:00:00-04:00", customer, city: "Cocoa Beach", service });
+    expect(v).toEqual({ id: "evt1", start: "2026-10-09T16:00:00-04:00", customer, address: "55 Ocean Blvd, Cocoa Beach, FL 32931", city: "Cocoa Beach", service });
   });
 
   it("does not treat a customer named Esteban as an estimate", () => {
