@@ -24,7 +24,11 @@ export async function buildBoard(
   const [today, tomorrow, weather, bookedThrough] = await Promise.all([
     schedule.getDay(date),
     schedule.getDay(next),
-    weatherSource.getForecast(date),
+    // Weather is not worth losing the schedule over: without it the board shows "Weather unavailable".
+    weatherSource.getForecast(date).catch((err: unknown) => {
+      console.error("Weather forecast failed:", err);
+      return null;
+    }),
     schedule.getBookedThrough(date),
   ]);
 
@@ -39,7 +43,7 @@ export async function buildBoard(
     jobs,
     visits,
     weather,
-    alerts: buildAlerts({ today: jobs, nextWorkday: { date: next, jobs: tomorrow.jobs }, hourly: weather.hourly }),
+    alerts: buildAlerts({ today: jobs, nextWorkday: { date: next, jobs: tomorrow.jobs }, hourly: weather?.hourly ?? [] }),
     nextWorkday: { date: next, rows: readyRows(tomorrow.jobs) },
     bookedThrough,
     sources: {

@@ -36,14 +36,14 @@ export function rainDuring(job: RuleJob, hourly: HourlyRain[]): HourlyRain[] {
   const to = minuteOfDay(job.end);
   return hourly.filter((h) => {
     const m = minuteOfDay(h.start);
-    return m < to && m + 60 > from && h.pop >= RAIN_ALERT_PCT;
+    return m < to && m + 60 > from && h.pop !== null && h.pop >= RAIN_ALERT_PCT;
   });
 }
 
 /** "50% rain 2–5 PM" for hours at or above the threshold, or null when there are none. */
 export function rainSummary(hours: HourlyRain[]): string | null {
   if (hours.length === 0) return null;
-  const max = Math.max(...hours.map((h) => h.pop));
+  const max = Math.max(...hours.map((h) => h.pop ?? 0));
   const first = Math.floor(minuteOfDay(hours[0].start) / 60);
   const last = Math.floor(minuteOfDay(hours[hours.length - 1].start) / 60);
   return `${max}% rain ${hourRange(first, last + 1)}`;

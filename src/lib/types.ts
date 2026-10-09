@@ -37,14 +37,14 @@ export interface Visit {
 
 export interface HourlyRain {
   start: string; // start of the hour, ISO
-  pop: number; // probability of precipitation, 0–100
+  pop: number | null; // probability of precipitation, 0–100; null for hours with no forecast (already past)
 }
 
 export interface Weather {
   location: string; // "Rockledge"
-  tempF: number;
-  highF: number;
-  lowF: number;
+  tempF: number | null;
+  highF: number | null;
+  lowF: number | null;
   wind: string; // "NE 12 mph"
   lightning?: string; // "risk this afternoon"
   hourly: HourlyRain[];
@@ -85,7 +85,7 @@ export interface Board {
   date: string; // today, YYYY-MM-DD in America/New_York
   jobs: BoardJob[]; // sorted by start time, then pin
   visits: BoardVisit[];
-  weather: Weather;
+  weather: Weather | null; // null when the forecast could not be loaded
   alerts: Alert[]; // all alerts, ranked; the screen shows the first 6
   nextWorkday: { date: string; rows: ReadyRow[] };
   bookedThrough: string | null;

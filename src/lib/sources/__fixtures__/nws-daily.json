@@ -1,0 +1,6 @@
+{"properties":{"periods":[
+ {"name":"Today","startTime":"2026-10-09T11:00:00-04:00","endTime":"2026-10-09T18:00:00-04:00","isDaytime":true,"temperature":86,"temperatureUnit":"F","shortForecast":"Mostly Sunny then Chance Showers And Thunderstorms"},
+ {"name":"Tonight","startTime":"2026-10-09T18:00:00-04:00","endTime":"2026-10-10T06:00:00-04:00","isDaytime":false,"temperature":79,"temperatureUnit":"F","shortForecast":"Chance Showers And Thunderstorms"},
+ {"name":"Saturday","startTime":"2026-10-10T06:00:00-04:00","endTime":"2026-10-10T18:00:00-04:00","isDaytime":true,"temperature":87,"temperatureUnit":"F","shortForecast":"Chance Showers And Thunderstorms"},
+ {"name":"Saturday Night","startTime":"2026-10-10T18:00:00-04:00","endTime":"2026-10-11T06:00:00-04:00","isDaytime":false,"temperature":78,"temperatureUnit":"F","shortForecast":"Showers And Thunderstorms Likely"}
+]}}

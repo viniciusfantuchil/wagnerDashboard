@@ -1,0 +1,4 @@
+{"properties":{"gridId":"MLB","gridX":52,"gridY":63,
+ "forecast":"https://api.weather.gov/gridpoints/MLB/52,63/forecast",
+ "forecastHourly":"https://api.weather.gov/gridpoints/MLB/52,63/forecast/hourly",
+ "timeZone":"America/New_York"}}

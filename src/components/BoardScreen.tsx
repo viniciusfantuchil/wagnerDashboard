@@ -15,6 +15,7 @@ const BASE_FS = 18;
 const MIN_FS = 13;
 const RELOAD_MINUTE = 4 * 60; // 4:00 AM
 const STAGE_H = 1080;
+const WEATHER_PLACE = "Rockledge";
 const MIN_STAGE_W = 1760; // narrower windows letterbox top and bottom
 const MAX_STAGE_W = 2560; // wider windows letterbox left and right
 
@@ -136,9 +137,11 @@ export function BoardScreen({ initial }: { initial: Board }) {
   const shownJobs = jobs.slice(0, MAX_JOBS);
   const shownAlerts = alerts.slice(0, MAX_ALERTS);
 
-  const hours = weather.hourly.map((h) => Math.floor(minuteOfDay(h.start) / 60));
-  const dayRain = rainSummary(weather.hourly.filter((h) => h.pop >= RAIN_ALERT_PCT));
-  const maxPop = Math.max(0, ...weather.hourly.map((h) => h.pop));
+  const hourly = weather?.hourly ?? [];
+  const hours = hourly.map((h) => Math.floor(minuteOfDay(h.start) / 60));
+  const dayRain = rainSummary(hourly.filter((h) => h.pop !== null && h.pop >= RAIN_ALERT_PCT));
+  const maxPop = Math.max(0, ...hourly.map((h) => h.pop ?? 0));
+  const deg = (t: number | null | undefined) => (t === null || t === undefined ? "–" : `${t}°F`);
 
   const ageMin = now ? Math.max(0, Math.floor((now.getTime() - Date.parse(board.generatedAt)) / 60_000)) : 0;
   const stale = failing && ageMin >= STALE_RED_MIN;
@@ -155,11 +158,17 @@ export function BoardScreen({ initial }: { initial: Board }) {
             <span>Brevard County</span>
           </div>
           {sources.sample && <span className="sample">Prototype · sample data</span>}
-          <div className="wx-head" aria-label={`Weather in ${weather.location}`}>
-            <b>{weather.tempF}°F</b>
-            <span>
-              {weather.location} · {dayRain ?? `${maxPop}% rain max`}
-            </span>
+          <div className="wx-head" aria-label={`Weather in ${weather?.location ?? WEATHER_PLACE}`}>
+            {weather ? (
+              <>
+                <b>{deg(weather.tempF)}</b>
+                <span>
+                  {weather.location} · {dayRain ?? `${maxPop}% rain max`}
+                </span>
+              </>
+            ) : (
+              <span>{WEATHER_PLACE} · weather unavailable</span>
+            )}
           </div>
           <div className="clock">
             <span className="date">{now ? dateFmt.format(now) : ""}</span>
@@ -257,37 +266,48 @@ export function BoardScreen({ initial }: { initial: Board }) {
               <div className="panel-head">
                 <h2 id="h-wx">Rain by Hour</h2>
                 <span className="eyebrow">
-                  {weather.location}
+                  {weather?.location ?? WEATHER_PLACE}
                   {hours.length > 0 ? ` · ${hourRange(hours[0], hours[hours.length - 1])}` : ""}
                 </span>
               </div>
-              <div className="rain">
-                {weather.hourly.map((h) => (
-                  <div key={h.start} title={`${h.pop}%`}>
-                    <i className={h.pop >= RAIN_ALERT_PCT ? "hi" : ""} style={{ height: `${Math.max(6, (h.pop / 60) * 100)}%` }} />
+              {weather ? (
+                <>
+                  <div className="rain">
+                    {hourly.map((h) => (
+                      <div key={h.start} title={h.pop === null ? "past" : `${h.pop}%`}>
+                        {h.pop !== null && (
+                          <i
+                            className={h.pop >= RAIN_ALERT_PCT ? "hi" : ""}
+                            style={{ height: `${Math.min(100, Math.max(6, (h.pop / 60) * 100))}%` }}
+                          />
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <div className="rain-h">
-                {weather.hourly.map((h, i) => (
-                  <span key={h.start}>
-                    {hourShort(hours[i])}
-                    <br />
-                    {h.pop}%
-                  </span>
-                ))}
-              </div>
-              <div className="wx-line">
-                <span>
-                  High <b>{weather.highF}°F</b> · low <b>{weather.lowF}°F</b>
-                </span>
-                <span>
-                  Lightning: <b>{weather.lightning ?? "none expected"}</b>
-                </span>
-                <span>
-                  Wind <b>{weather.wind}</b>
-                </span>
-              </div>
+                  <div className="rain-h">
+                    {hourly.map((h, i) => (
+                      <span key={h.start}>
+                        {hourShort(hours[i])}
+                        <br />
+                        {h.pop === null ? "–" : `${h.pop}%`}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="wx-line">
+                    <span>
+                      High <b>{deg(weather.highF)}</b> · low <b>{deg(weather.lowF)}</b>
+                    </span>
+                    <span>
+                      Lightning: <b>{weather.lightning ?? "none expected"}</b>
+                    </span>
+                    <span>
+                      Wind <b>{weather.wind}</b>
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="empty">Forecast unavailable. Weather alerts are off until it is back.</div>
+              )}
             </section>
 
             <section className="panel" aria-labelledby="h-alerts" style={{ flex: 1 }}>
