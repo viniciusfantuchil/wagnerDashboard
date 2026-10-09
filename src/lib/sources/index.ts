@@ -11,6 +11,9 @@ export interface Sources {
   schedule: ScheduleSource;
   weather: WeatherSource;
   geocoder?: Geocoder;
+  /** True to draw OpenStreetMap under the pins; false keeps the prototype's schematic map. */
+  mapImage?: boolean;
+  office?: { lat: number; lon: number };
 }
 
 /** Places nothing by street address; items fall back to their city center. */
@@ -26,9 +29,12 @@ let nwsSource: { key: string; source: NwsWeatherSource } | null = null;
 /** Rockledge, FL (the office) unless HQ_LAT / HQ_LON say otherwise. */
 const DEFAULT_HQ = { lat: 28.3506, lon: -80.7253 };
 
+function office(env: Env) {
+  return { lat: Number(env.HQ_LAT) || DEFAULT_HQ.lat, lon: Number(env.HQ_LON) || DEFAULT_HQ.lon };
+}
+
 function nws(env: Env): NwsWeatherSource {
-  const lat = Number(env.HQ_LAT) || DEFAULT_HQ.lat;
-  const lon = Number(env.HQ_LON) || DEFAULT_HQ.lon;
+  const { lat, lon } = office(env);
   const key = `${lat},${lon}`;
   if (nwsSource?.key !== key) nwsSource = { key, source: new NwsWeatherSource(lat, lon, "Rockledge") };
   return nwsSource.source;
@@ -43,7 +49,13 @@ export function getSources(today: string, env: Env = process.env): Sources {
   const key = env.GOOGLE_SERVICE_ACCOUNT_JSON;
   const ids = env.CALENDAR_IDS;
   if (!key || !ids) {
-    return { schedule: new SampleScheduleSource(today), weather: new SampleWeatherSource(), geocoder: OFFLINE_GEOCODER };
+    return {
+      schedule: new SampleScheduleSource(today),
+      weather: new SampleWeatherSource(),
+      geocoder: OFFLINE_GEOCODER,
+      mapImage: env.MAP_STYLE === "osm",
+      office: office(env),
+    };
   }
 
   // Reuse the source between requests so the access token is cached.
@@ -53,5 +65,11 @@ export function getSources(today: string, env: Env = process.env): Sources {
     calendarSource = { key: cacheKey, source: new GoogleCalendarSource(parseCalendarIds(ids), auth) };
   }
   census ??= new CachedGeocoder(new CensusGeocoder());
-  return { schedule: calendarSource.source, weather: nws(env), geocoder: census };
+  return {
+    schedule: calendarSource.source,
+    weather: nws(env),
+    geocoder: census,
+    mapImage: env.MAP_STYLE !== "schematic",
+    office: office(env),
+  };
 }

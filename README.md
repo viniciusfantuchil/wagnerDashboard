@@ -30,6 +30,7 @@ npm run build
 | `src/lib/sources/` | `ScheduleSource` / `WeatherSource` interfaces and the sample implementation |
 | `src/lib/sources/calendar.ts` | `GoogleCalendarSource`: reads each crew calendar with the service account |
 | `src/lib/sources/weather.ts` | `NwsWeatherSource`: hourly forecast from api.weather.gov (no key needed) |
+| `src/lib/geo/basemap.ts`, `src/app/api/tiles/` | OpenStreetMap basemap: framing, projection, server-side tile route |
 | `src/lib/geo/geocode.ts` | Address → map position (US Census geocoder for now; city center as fallback) |
 | `src/lib/google/auth.ts` | Service account access tokens (no Google SDK) |
 | `src/proxy.ts`, `src/lib/access.ts` | Access control: every page and API route needs `BOARD_ACCESS_TOKEN` |
@@ -37,6 +38,16 @@ npm run build
 | `src/lib/rules/alerts.ts` | Alert rules (spec §7) |
 | `src/lib/rules/readiness.ts` | Next workday and ready-check rows |
 | `src/components/` | Screen components; styles in `src/app/globals.css` are copied from the prototype |
+
+## Map
+
+The live board draws an **OpenStreetMap** basemap, framed to fit today's jobs, visits and the office. The board's own numbered, status-colored pins are drawn on top. No account, key or payment is needed.
+
+- **Tiles go through the board's server** (`GET /api/tiles/z/x/y`, behind the access token). The browser only talks to the board, and OpenStreetMap sees one identified, cached client, as its [tile usage policy](https://operations.osmfoundation.org/policies/tiles/) asks.
+- **Tile limits:** only tiles around Brevard are served, so the route cannot be used as an open tile proxy.
+- **Caching:** tiles are cached in memory, and the browser keeps them for 7 days.
+- **Attribution:** "© OpenStreetMap contributors" stays visible on the map. The policy requires it.
+- **Sample data** keeps the prototype's schematic map. Set `MAP_STYLE=osm` to preview OpenStreetMap locally, or `MAP_STYLE=schematic` to turn it off on the live board.
 
 ## Map positions
 

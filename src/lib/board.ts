@@ -1,5 +1,6 @@
 import { crewRank } from "@/lib/crews";
 import { locateAll } from "@/lib/geo/geocode";
+import { fitView } from "@/lib/geo/basemap";
 import { buildAlerts } from "@/lib/rules/alerts";
 import { nextWorkday, readyRows } from "@/lib/rules/readiness";
 import { getSources, OFFLINE_GEOCODER, type Sources } from "@/lib/sources";
@@ -26,10 +27,13 @@ async function placeOnMap<T extends Job | Visit>(items: T[], geocoder: Sources["
   });
 }
 
+const onMap = (items: { lat?: number; lon?: number }[]) =>
+  items.flatMap((i) => (i.lat !== undefined && i.lon !== undefined ? [{ lat: i.lat, lon: i.lon }] : []));
+
 export async function buildBoard(now = new Date(), sources?: Sources): Promise<Board> {
   const date = nyDate(now);
   const next = nextWorkday(date);
-  const { schedule, weather: weatherSource, geocoder } = sources ?? getSources(date);
+  const { schedule, weather: weatherSource, geocoder, mapImage, office } = sources ?? getSources(date);
 
   const [today, tomorrow, weather, bookedThrough] = await Promise.all([
     schedule.getDay(date),
@@ -58,6 +62,7 @@ export async function buildBoard(now = new Date(), sources?: Sources): Promise<B
     alerts: buildAlerts({ today: jobs, nextWorkday: { date: next, jobs: tomorrow.jobs }, hourly: weather?.hourly ?? [] }),
     nextWorkday: { date: next, rows: readyRows(tomorrow.jobs) },
     bookedThrough,
+    map: mapImage && office ? { ...fitView(onMap([...jobs, ...visits]), office), office } : null,
     sources: {
       schedule: schedule.label,
       weather: weatherSource.label,
