@@ -98,7 +98,7 @@ main{display:grid;gap:14px;grid-template-columns:540px minmax(0,1fr) 600px;min-h
 .count.progress b{color:var(--warning)} .count.scheduled b{color:var(--navy)} .count.issue b{color:var(--red)} .count.done b{color:var(--success)}
 
 /* Jobs */
-.jobs{display:flex;flex-direction:column;gap:7px;min-height:0;flex:1}
+.jobs{display:flex;flex-direction:column;gap:7px;min-height:0;flex:1;overflow:hidden}
 .job{display:grid;grid-template-columns:40px 72px minmax(0,1fr) auto;column-gap:12px;row-gap:2px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 12px}
 .job.flag-issue{border-color:var(--red);box-shadow:inset 4px 0 0 var(--red)}
 .job{box-shadow:inset 6px 0 0 var(--crew,transparent);padding-left:16px}
@@ -110,8 +110,10 @@ main{display:grid;gap:14px;grid-template-columns:540px minmax(0,1fr) 600px;min-h
 .job .who small{font-weight:400;color:var(--ink-muted);font-size:1em}
 .job .what{grid-column:3;font-size:.86em;color:var(--ink-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .job .what b{color:var(--ink);font-weight:600}
-.job .what em{font-style:normal;color:var(--red);font-weight:600}
 .job .tags{grid-column:4;grid-row:1 / span 2;display:flex;gap:6px;align-items:center}
+/* The event note gets its own line under the crew line, across the tags column too. */
+.job .note{grid-column:3 / span 2;font-size:.86em;font-weight:600;color:var(--red);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.job.has-note .num,.job.has-note .t{grid-row:span 3}
 .sub{font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:.82em;color:var(--ink-muted)}
 .visits{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;flex:none}
 .seals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;flex:none}
