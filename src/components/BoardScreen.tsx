@@ -44,9 +44,9 @@ function CrewDot({ crew }: { crew: string }) {
 }
 
 function DepositChip({ v }: { v: Check }) {
-  if (v === "ok") return <span className="chip c-ok">Deposit ok</span>;
+  if (v === "ok") return <span className="chip c-ok">Deposit ✓</span>;
   if (v === "missing") return <span className="chip c-none">No deposit</span>;
-  return <span className="chip c-unknown">Deposit unknown</span>;
+  return <span className="chip c-unknown">Deposit ?</span>;
 }
 
 export function BoardScreen({ initial }: { initial: Board }) {
@@ -310,7 +310,7 @@ export function BoardScreen({ initial }: { initial: Board }) {
                           </b>
                           <small>
                             <span className={`st-${k}`}>{STATUS_LABEL[j.status]}</span>
-                            {j.deposit !== "ok" ? <span className="st-issue"> · {j.deposit === "missing" ? "No deposit" : "Deposit unknown"}</span> : null}
+                            {j.deposit !== "ok" ? <span className="st-issue"> · {j.deposit === "missing" ? "No deposit" : "Deposit ?"}</span> : null}
                             {` · ${j.city}`}
                             {j.note ? <em> · {j.note}</em> : null}
                           </small>

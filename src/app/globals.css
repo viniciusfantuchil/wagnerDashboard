@@ -306,16 +306,16 @@ footer .src.stale{color:var(--red);font-weight:600}
 .cjob-updated{margin:0;font-size:13px;color:var(--ink-muted)}
 .cjob-chev{position:absolute;right:0;bottom:0;color:var(--ink-muted);font-size:16px}
 .cjob-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
-.chip{display:inline-flex;align-items:center;min-height:28px;padding:3px 10px;border-radius:999px;border:1px solid transparent;font:600 13px var(--display);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
-.chip.st-scheduled{background:var(--navy);color:var(--on-solid)}
-.chip.st-progress{background:var(--warning);color:var(--on-solid)}
-.chip.st-done{background:var(--success);color:var(--on-solid)}
-.chip.st-issue{background:var(--red);color:var(--on-solid)}
-.chip.st-postponed{background:var(--ink-muted);color:var(--on-solid)}
-.chip.t-ok{background:var(--success-tint);color:var(--success)}
-.chip.t-warn{background:var(--warning-tint);color:var(--warning)}
-.chip.t-bad{background:var(--red-tint);color:var(--red)}
-.chip.t-muted{background:var(--surface-sunken);color:var(--ink-muted)}
+.control-page .chip{display:inline-flex;align-items:center;min-height:28px;padding:3px 10px;border-radius:999px;border:1px solid transparent;font:600 13px var(--display);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+.control-page .chip.st-scheduled{background:var(--navy);color:var(--on-solid)}
+.control-page .chip.st-progress{background:var(--warning);color:var(--on-solid)}
+.control-page .chip.st-done{background:var(--success);color:var(--on-solid)}
+.control-page .chip.st-issue{background:var(--red);color:var(--on-solid)}
+.control-page .chip.st-postponed{background:var(--ink-muted);color:var(--on-solid)}
+.control-page .chip.t-ok{background:var(--success-tint);color:var(--success)}
+.control-page .chip.t-warn{background:var(--warning-tint);color:var(--warning)}
+.control-page .chip.t-bad{background:var(--red-tint);color:var(--red)}
+.control-page .chip.t-muted{background:var(--surface-sunken);color:var(--ink-muted)}
 .cjob-quick{display:flex;gap:8px}
 .cjob-quick button{min-height:48px;border-radius:8px;font:700 16px var(--display);text-transform:uppercase;letter-spacing:.05em;border:0}
 .cjob-quick button:disabled{opacity:.5}
