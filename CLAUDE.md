@@ -26,5 +26,5 @@ Office TV wall display for Wagner Paver Contractors Inc. (Rockledge, FL), a resi
 - Show city only on screen, never street addresses, and no dollar amounts.
 - UI text is US English (12-hour clock, °F). Code, comments and docs in English.
 - Use the Wagner Pavers 2.0 design tokens from the prototype `:root`. Status colors: in progress = warning, scheduled = navy, completed = success, issue = red, postponed = muted. Always show the status word, never color alone. Crew colors (`src/lib/crews.ts`, matching the crews' Google calendar colors) appear only as a card stripe, a dot by the crew name and a ring around the map pin; status keeps the pin and number fill.
-- Keep data sources behind interfaces so Google Calendar can be replaced by Markate later.
+- Keep data sources behind interfaces so Google Calendar can be replaced by Markate later. The control screen (`/control`) writes through `ScheduleWriter`; it changes only the board's description lines, and only the office may change Deposit (D-003). Never put a code or password in a URL; responses with people's data or a session are `Cache-Control: no-store`.
 - Every alert rule and the event parser need unit tests.

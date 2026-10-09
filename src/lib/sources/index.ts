@@ -1,6 +1,7 @@
 import { CachedGeocoder, CensusGeocoder, type Geocoder } from "@/lib/geo/geocode";
-import { CALENDAR_READONLY, parseServiceAccount, ServiceAccountAuth } from "@/lib/google/auth";
+import { CALENDAR_EVENTS, CALENDAR_READONLY, parseServiceAccount, ServiceAccountAuth } from "@/lib/google/auth";
 import { GoogleCalendarSource, parseCalendarIds } from "./calendar";
+import { GoogleCalendarWriter, type ScheduleWriter } from "./calendarWriter";
 import { SampleScheduleSource, SampleWeatherSource } from "./sample";
 import type { ScheduleSource, WeatherSource } from "./types";
 import { NwsWeatherSource } from "./weather";
@@ -25,6 +26,23 @@ type Env = Record<string, string | undefined>;
 
 let calendarSource: { key: string; source: GoogleCalendarSource } | null = null;
 let nwsSource: { key: string; source: NwsWeatherSource } | null = null;
+let writer: { key: string; writer: GoogleCalendarWriter } | null = null;
+
+/**
+ * Writes job changes from the control screen to Google Calendar, or null when the calendars are not
+ * configured (sample data is read-only). Uses its own token with the events scope; reading keeps read-only.
+ */
+export function getWriter(env: Env = process.env): ScheduleWriter | null {
+  const key = env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  const ids = env.CALENDAR_IDS;
+  if (!key || !ids) return null;
+  const cacheKey = `${key}\n${ids}`;
+  if (writer?.key !== cacheKey) {
+    const auth = new ServiceAccountAuth(parseServiceAccount(key), CALENDAR_EVENTS);
+    writer = { key: cacheKey, writer: new GoogleCalendarWriter(parseCalendarIds(ids), auth) };
+  }
+  return writer.writer;
+}
 
 /** Rockledge, FL (the office) unless HQ_LAT / HQ_LON say otherwise. */
 const DEFAULT_HQ = { lat: 28.3506, lon: -80.7253 };
