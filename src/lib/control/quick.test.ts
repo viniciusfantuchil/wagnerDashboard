@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { applyChanges, validateChanges } from "./changes";
 import type { ControlJob } from "./jobs";
 import { attentionCounts, attentionMatch, canStop, nextStep, readinessChips, revertOf, statusTone } from "./quick";
 
@@ -10,7 +11,7 @@ const job = (id: string, values: ControlJob["values"]): ControlJob => ({
   city: "Viera",
   service: "Driveway",
   start: "2026-10-09T07:00:00-04:00",
-  values: { Status: "Scheduled", Deposit: "OK", Permit: "OK", Material: "OK", Confirm48: "SENT", Note: "", ...values },
+  values: { Status: "Scheduled", Deposit: "OK", Permit: "APPROVED", Material: "ORDERED", Confirm48: "SENT", Note: "", ...values },
   warnings: [],
 });
 
@@ -37,14 +38,32 @@ describe("next step button", () => {
 
 describe("readiness chips", () => {
   it("always say the state in words, and never show an unknown deposit as OK (D-003)", () => {
-    const chips = readinessChips(job("a", { Deposit: undefined, Permit: "N/A", Material: "PENDING", Confirm48: "SENT" }));
+    const chips = readinessChips(job("a", { Deposit: undefined, Permit: "N/A", Material: "NOT ORDERED", Confirm48: "SENT" }));
     expect(chips.map((c) => [c.label, c.tone])).toEqual([
       ["Deposit ?", "warn"],
       ["Permit N/A", "muted"],
-      ["Material pending", "warn"],
+      ["Material not ordered", "warn"],
       ["48h ✓", "ok"],
     ]);
     expect(readinessChips(job("b", { Deposit: "PENDING" }))[0]).toMatchObject({ label: "Deposit pending", tone: "bad" });
+  });
+
+  it("tells a 50% deposit from the final payment, a requested permit from an approved one, and shows where material goes", () => {
+    const labels = (values: ControlJob["values"]) => readinessChips(job("c", values)).map((c) => c.label);
+    expect(labels({ Deposit: "OK", Permit: "REQUESTED", Material: "ORDERED", Delivery: "SHOWROOM" })).toEqual([
+      "Deposit 50% ✓",
+      "Permit requested",
+      "Material ordered",
+      "To showroom",
+      "48h ✓",
+    ]);
+    expect(labels({ Deposit: "FINAL", Permit: "APPROVED", Delivery: "JOB SITE", Confirm48: "PENDING" })).toEqual([
+      "Final payment ✓",
+      "Permit ✓",
+      "Material ordered",
+      "To job site",
+      "48h pending",
+    ]);
   });
 });
 
@@ -60,7 +79,11 @@ describe("needs attention", () => {
   };
   const next = {
     date: "2026-10-12",
-    jobs: [job("unconfirmed", { Confirm48: "PENDING", Material: undefined }), job("permit", { Permit: "PENDING" }), job("postponed", { Status: "Postponed", Confirm48: "PENDING" })],
+    jobs: [
+      job("unconfirmed", { Confirm48: "PENDING", Material: undefined }),
+      job("permit", { Permit: "REQUESTED", Deposit: "FINAL" }),
+      job("postponed", { Status: "Postponed", Confirm48: "PENDING" }),
+    ],
   };
 
   it("counts today's and the next workday's items like the TV alerts", () => {
@@ -68,8 +91,8 @@ describe("needs attention", () => {
       "1 stopped",
       "2 deposit pending",
       "1 not confirmed (48 h)",
-      "1 material pending",
-      "1 permit pending",
+      "1 material not ordered",
+      "1 permit not approved",
     ]);
   });
 
@@ -93,5 +116,30 @@ describe("undo", () => {
     expect(revertOf(before, { Status: "Issue", Note: "Rain" })).toEqual({ Status: "Scheduled", Note: "" });
     expect(revertOf(before, { Deposit: "OK" })).toEqual({});
     expect(revertOf({ ...before, values: { ...before.values, Note: undefined } }, { Note: "x" })).toEqual({ Note: "" });
+  });
+});
+
+describe("new readiness values from the screen", () => {
+  const office = { username: "diandra", name: "Diandra", office: true };
+  const lead = { username: "jorge", name: "Jorge", office: false, crew: "Crew 2" };
+
+  it("accepts final payment, permit requested / approved, material ordered and delivery for the office", () => {
+    expect(validateChanges({ Deposit: "FINAL", Permit: "REQUESTED", Material: "NOT ORDERED", Delivery: "SHOWROOM" }, office)).toEqual({
+      Deposit: "FINAL",
+      Permit: "REQUESTED",
+      Material: "NOT ORDERED",
+      Delivery: "SHOWROOM",
+    });
+    expect(() => validateChanges({ Permit: "OK" }, office)).toThrow(/Permit must be one of: REQUESTED, APPROVED, N\/A/);
+  });
+
+  it("keeps delivery and payment with the office (D-003)", () => {
+    expect(() => validateChanges({ Delivery: "JOB SITE" }, lead)).toThrow(/Only the office/);
+    expect(() => validateChanges({ Deposit: "FINAL" }, lead)).toThrow(/Only the office/);
+  });
+
+  it("writes the lines the parser reads back", () => {
+    const desc = applyChanges("Deposit: OK\nPermit: PENDING", { Deposit: "FINAL", Permit: "APPROVED", Delivery: "JOB SITE" }, "Diandra · Oct 9, 2:15 PM");
+    expect(desc).toBe("Deposit: FINAL\nPermit: APPROVED\nDelivery: JOB SITE\nUpdated: Diandra · Oct 9, 2:15 PM");
   });
 });

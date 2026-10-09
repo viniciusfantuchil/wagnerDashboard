@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FIELDS, type Changes, type Field } from "@/lib/control/changes";
+import { FIELDS, VALUE_LABEL, type Changes, type Field } from "@/lib/control/changes";
 import { attentionCounts, attentionMatch, canStop, nextStep, readinessChips, revertOf, STOP_REASONS, statusTone, type AttentionKey } from "@/lib/control/quick";
 import type { ControlDay, ControlJob } from "@/lib/control/jobs";
 import { MIN_QUERY, NEEDS, WINDOWS, type SearchResult, type SearchWindow } from "@/lib/control/searchOptions";
@@ -10,9 +10,10 @@ import type { ControlUser } from "@/lib/control/users";
 import { clock12, monthDay, weekdayShort } from "@/lib/time";
 
 const CHECKS: { field: Exclude<Field, "Status" | "Note">; label: string }[] = [
-  { field: "Deposit", label: "Deposit" },
+  { field: "Deposit", label: "Payment" },
   { field: "Permit", label: "Permit" },
   { field: "Material", label: "Material" },
+  { field: "Delivery", label: "Delivery" },
   { field: "Confirm48", label: "48-h conf." },
 ];
 
@@ -41,7 +42,7 @@ function Segmented({
           disabled={disabled}
           onClick={() => value !== o && onPick(o)}
         >
-          {o}
+          {kind === "status" ? o : (VALUE_LABEL[o] ?? o)}
         </button>
       ))}
     </div>
@@ -105,6 +106,7 @@ function JobCard({
 
   const pickCheck = (field: Field, value: string) => {
     if (field === "Deposit" && value === "OK" && !window.confirm("Mark the 50% deposit as received? Only when payment is confirmed (D-003).")) return;
+    if (field === "Deposit" && value === "FINAL" && !window.confirm("Mark the final payment as received? Only when payment is confirmed.")) return;
     send({ [field]: value });
   };
 
@@ -114,7 +116,7 @@ function JobCard({
         <span className="cjob-top">
           <span className="cjob-crew">
             <i style={{ background: job.color ?? "var(--ink-muted)" }} />
-            {job.crewShort}
+            {job.crew}
           </span>
           <span className="cjob-time">
             {showDate && <b className="cjob-date">{`${weekdayShort(date)} ${monthDay(date)} · `}</b>}
@@ -139,7 +141,12 @@ function JobCard({
             ))}
           {job.warnings.length > 0 && <span className="chip t-warn">Calendar ⚠</span>}
         </span>
-        {job.values.Note && !open && <span className="cjob-notetext">{job.values.Note}</span>}
+        {job.values.Note && (
+          <span className={`cjob-notebox${status === "Issue" ? " issue" : ""}`}>
+            <b>{status === "Issue" ? "Stopped" : "Note"}</b>
+            {job.values.Note}
+          </span>
+        )}
         <span className="cjob-chev" aria-hidden>
           {open ? "▴" : "▾"}
         </span>
@@ -198,9 +205,10 @@ function JobCard({
           )}
 
           <div className="cjob-note">
-            <input
+            <textarea
               value={note}
               maxLength={200}
+              rows={2}
               placeholder={job.values.Status === "Issue" ? "Why is the job stopped?" : "Note for the board"}
               disabled={!writable}
               onChange={(e) => setNote(e.target.value)}
@@ -211,6 +219,7 @@ function JobCard({
           </div>
 
           {job.warnings.length > 0 && <p className="cjob-warn">Calendar: {job.warnings.join("; ")}</p>}
+          {job.updated && <p className="cjob-updated">Last change: {job.updated}</p>}
           {saving && <p className="cjob-save">Saving…</p>}
         </div>
       )}
@@ -225,8 +234,8 @@ type Results = { results: SearchResult[]; total: number; from: string; to: strin
 const WHEN_LABEL: Record<SearchWindow, string> = { upcoming: "Upcoming", past: "Past", all: "Past and upcoming" };
 const NEEDS_LABEL: Record<(typeof NEEDS)[number], string> = {
   Deposit: "Deposit pending",
-  Permit: "Permit pending",
-  Material: "Material pending",
+  Permit: "Permit not approved",
+  Material: "Material not ordered",
   Confirm48: "48-h conf. pending",
 };
 
@@ -377,6 +386,9 @@ export function ControlScreen({ user }: { user: ControlUser }) {
           </p>
         </div>
         <div className="control-actions">
+          <a className="control-link" href="/">
+            Board
+          </a>
           {user.admin && (
             <a className="control-link" href="/control/users">
               Users

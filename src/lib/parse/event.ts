@@ -118,18 +118,41 @@ export function descriptionFields(description?: string): Map<string, string> {
   return fields;
 }
 
-/** Reads a status key. Missing key = unknown; an unrecognized value = unknown plus a warning. */
+/**
+ * Readiness values as written (spaces, dashes and case ignored) → [check for the alert rules, value the control
+ * screen shows]. Older events use OK / PENDING for everything; those still read.
+ */
+type Reading = [Check, string];
+export const DEPOSIT: Record<string, Reading> = { OK: ["ok", "OK"], FINAL: ["ok", "FINAL"], FINALPAYMENT: ["ok", "FINAL"], PENDING: ["missing", "PENDING"] };
+export const PERMIT: Record<string, Reading> = {
+  APPROVED: ["ok", "APPROVED"],
+  OK: ["ok", "APPROVED"],
+  "N/A": ["ok", "N/A"],
+  NA: ["ok", "N/A"],
+  REQUESTED: ["missing", "REQUESTED"],
+  PENDING: ["missing", "PENDING"], // not requested yet
+};
+export const MATERIAL: Record<string, Reading> = { ORDERED: ["ok", "ORDERED"], OK: ["ok", "ORDERED"], NOTORDERED: ["missing", "NOT ORDERED"], PENDING: ["missing", "NOT ORDERED"] };
+export const CONFIRM48: Record<string, Reading> = { SENT: ["ok", "SENT"], PENDING: ["missing", "PENDING"] };
+/** Where the material is delivered. Information only: no alert. */
+export const DELIVERY: Record<string, string> = { JOBSITE: "JOB SITE", SHOWROOM: "SHOWROOM" };
+
+/** Reads a readiness key. Missing key = unknown; an unrecognized value = unknown plus a warning. */
 function readCheck(
   fields: Map<string, string>,
   key: string,
   label: string,
-  values: Record<string, Check>,
+  values: Record<string, Reading>,
   warnings: string[],
+  keep: (value: string) => void,
 ): Check {
   const raw = fields.get(key);
   if (raw === undefined || raw === "") return "unknown";
-  const v = values[raw.toUpperCase().replace(/\s+/g, "")];
-  if (v) return v;
+  const r = values[raw.toUpperCase().replace(/[\s_-]+/g, "")];
+  if (r) {
+    keep(r[1]);
+    return r[0];
+  }
   warnings.push(`Unrecognized ${label} value "${scrubMoney(raw)}"`);
   return "unknown";
 }
@@ -244,10 +267,17 @@ export function parseEvent(event: CalendarEvent, crew: string, onDate?: string):
   }
 
   const fields = descriptionFields(event.description);
-  const deposit = readCheck(fields, "deposit", "Deposit", { OK: "ok", PENDING: "missing" }, warnings);
-  const permit = readCheck(fields, "permit", "Permit", { OK: "ok", "N/A": "ok", NA: "ok", PENDING: "missing" }, warnings);
-  const material = readCheck(fields, "material", "Material", { OK: "ok", PENDING: "missing" }, warnings);
-  const confirm48 = readCheck(fields, "confirm48", "Confirm48", { SENT: "ok", PENDING: "missing" }, warnings);
+  const lines: Job["lines"] = {};
+  const deposit = readCheck(fields, "deposit", "Deposit", DEPOSIT, warnings, (v) => (lines.Deposit = v));
+  const permit = readCheck(fields, "permit", "Permit", PERMIT, warnings, (v) => (lines.Permit = v));
+  const material = readCheck(fields, "material", "Material", MATERIAL, warnings, (v) => (lines.Material = v));
+  const confirm48 = readCheck(fields, "confirm48", "Confirm48", CONFIRM48, warnings, (v) => (lines.Confirm48 = v));
+  const deliveryRaw = fields.get("delivery");
+  if (deliveryRaw) {
+    const d = DELIVERY[deliveryRaw.toUpperCase().replace(/[\s_-]+/g, "")];
+    if (d) lines.Delivery = d;
+    else warnings.push(`Unrecognized Delivery value "${scrubMoney(deliveryRaw)}"`);
+  }
   if (deposit === "unknown" && !fields.get("deposit")) warnings.push(WARN.deposit);
 
   let day: Job["day"];
@@ -297,6 +327,8 @@ export function parseEvent(event: CalendarEvent, crew: string, onDate?: string):
       material,
       confirm48,
       note,
+      ...(Object.keys(lines).length ? { lines } : {}),
+      ...(fields.get("updated") ? { updated: scrubMoney(fields.get("updated")!) } : {}),
       parseWarnings,
     },
   };

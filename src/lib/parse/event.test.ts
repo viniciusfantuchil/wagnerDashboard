@@ -47,6 +47,7 @@ describe("new-style events", () => {
       status: "scheduled",
       deposit: "ok",
       permit: "ok",
+      lines: { Deposit: "OK", Permit: "N/A", Material: "ORDERED", Confirm48: "SENT" },
       material: "ok",
       confirm48: "ok",
       note: "Gate code 1234",
@@ -318,5 +319,46 @@ describe("helpers", () => {
   it("splits sizes only at the end", () => {
     expect(splitSize("Driveway 420 sf")).toEqual({ service: "Driveway", size: "420 sf" });
     expect(splitSize("2 car driveway")).toEqual({ service: "2 car driveway" });
+  });
+});
+
+describe("readiness values (final payment, permit requested, material ordered, delivery)", () => {
+  const read = (lines: string[]) => job({ description: lines.join("\n") });
+
+  it("reads the office's values and keeps the detail for the control screen", () => {
+    const j = read(["Deposit: FINAL", "Permit: Requested", "Material: Not ordered", "Delivery: Showroom", "Confirm48: SENT", "Updated: Diandra · Oct 9, 2:15 PM"]);
+    expect([j.deposit, j.permit, j.material, j.confirm48]).toEqual(["ok", "missing", "missing", "ok"]);
+    expect(j.lines).toEqual({ Deposit: "FINAL", Permit: "REQUESTED", Material: "NOT ORDERED", Delivery: "SHOWROOM", Confirm48: "SENT" });
+    expect(j.updated).toBe("Diandra · Oct 9, 2:15 PM");
+    expect(j.parseWarnings).toEqual([]);
+  });
+
+  it.each([
+    ["Deposit: Final payment", "deposit", "ok", "Deposit", "FINAL"],
+    ["Permit: Approved", "permit", "ok", "Permit", "APPROVED"],
+    ["Material: ordered", "material", "ok", "Material", "ORDERED"],
+    ["Delivery: job-site", null, null, "Delivery", "JOB SITE"],
+  ] as const)("%s", (line, check, value, key, shown) => {
+    const j = read([line, "Deposit: OK"]);
+    if (check) expect(j[check]).toBe(value);
+    expect(j.lines?.[key]).toBe(shown);
+  });
+
+  it("still reads the older OK / PENDING lines", () => {
+    const j = read(["Deposit: PENDING", "Permit: PENDING", "Material: OK"]);
+    expect([j.deposit, j.permit, j.material]).toEqual(["missing", "missing", "ok"]);
+    expect(j.lines).toEqual({ Deposit: "PENDING", Permit: "PENDING", Material: "ORDERED" });
+  });
+
+  it("never treats a final payment written another way as paid, and flags it (D-003)", () => {
+    const j = read(["Deposit: paid in full", "Delivery: garage"]);
+    expect(j.deposit).toBe("unknown");
+    expect(j.parseWarnings).toEqual(expect.arrayContaining(['Unrecognized Deposit value "paid in full"', 'Unrecognized Delivery value "garage"']));
+  });
+
+  it("raises the right alert for a requested permit and an unordered material on the next workday", () => {
+    const next = { ...read(["Deposit: OK", "Permit: Requested", "Material: Not ordered", "Confirm48: SENT"]), start: "2026-10-12T07:00:00-04:00" };
+    const titles = buildAlerts({ today: [], nextWorkday: { date: "2026-10-12", jobs: [next] }, hourly: [] }).map((a) => a.title);
+    expect(titles).toEqual(["Mon · Hartley: permit requested, not approved", "Mon · Hartley: material not ordered"]);
   });
 });

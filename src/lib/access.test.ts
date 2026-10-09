@@ -3,6 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST as BOARD_LOGIN } from "@/app/api/board/login/route";
 import { proxy } from "@/proxy";
 import { ACCESS_COOKIE, cookieValue, decideAccess } from "./access";
+import { hashPassword } from "./control/password";
+import { MemoryUserStore, setUserStoreForTests } from "./control/store";
+import { CONTROL_COOKIE, sessionCookie } from "./control/users";
 
 const TOKEN = "s3cr3t-token-for-the-tv-0123456789";
 
@@ -70,5 +73,30 @@ describe("TV setup at /login", () => {
     const tile = await proxy(new NextRequest("https://board.example.com/api/tiles/10/282/427", { headers: { cookie } }));
     expect(tile.headers.get("cache-control")).toBeNull();
     expect((await proxy(new NextRequest("https://board.example.com/api/board"))).status).toBe(401);
+  });
+});
+
+describe("board from the Job Status screen", () => {
+  afterEach(() => {
+    setUserStoreForTests(null);
+    vi.unstubAllEnvs();
+  });
+
+  it("opens for someone signed in to /control, without the TV code; others still go to /login", async () => {
+    vi.stubEnv("BOARD_ACCESS_TOKEN", TOKEN);
+    vi.stubEnv("CONTROL_USERS", "");
+    const store = new MemoryUserStore();
+    await store.put({ username: "jorge", name: "Jorge", office: false, crew: "Crew 2", password: hashPassword("crew2-pass", 100_000), createdAt: "t", createdBy: "test" });
+    setUserStoreForTests(store);
+    const session = `${CONTROL_COOKIE}=${sessionCookie((await store.get("jorge"))!)}`;
+
+    const page = await proxy(new NextRequest("https://board.example.com/", { headers: { cookie: session } }));
+    expect(page.status).toBe(200);
+    expect(page.headers.get("cache-control")).toBe("no-store, max-age=0");
+    expect((await proxy(new NextRequest("https://board.example.com/api/board", { headers: { cookie: session } }))).status).toBe(200);
+
+    const forged = await proxy(new NextRequest("https://board.example.com/", { headers: { cookie: `${CONTROL_COOKIE}=jorge.9999999999.${"A".repeat(43)}` } }));
+    expect(forged.status).toBe(307);
+    expect(forged.headers.get("location")).toBe("https://board.example.com/login");
   });
 });

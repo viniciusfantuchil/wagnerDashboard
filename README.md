@@ -65,10 +65,10 @@ Job and visit addresses are placed on the map on the server, with the free **US 
 | Role | Can change |
 |---|---|
 | Admin | Everything an office user can, plus adding, changing and removing users at `/control/users` |
-| Office | Status, Deposit, Permit, Material, 48-hour confirmation and Note, on every crew's jobs |
+| Office | Status, Deposit (50% deposit or final payment), Permit (requested / approved / N/A), Material (ordered or not), Delivery (job site / showroom), 48-hour confirmation and Note, on every crew's jobs |
 | Crew lead | Status and Note, on their own crew's jobs |
 
-**Cards.** Each job is a short card: crew, time, customer and city, service, and chips for status and (office) Deposit, Permit, Material and 48-h confirmation. A chip always says its state in words (`Deposit ✓`, `Deposit ?`, `Deposit pending`); an unknown deposit is never shown as OK (D-003). One button does the usual next step (**Start**, **Done** or **Resume**); **Issue** asks why, with one-tap reasons, and saves the status and note together. Tapping the card opens the full editor. After every save a message offers **Undo** for a few seconds.
+**Cards.** Each job is a short card: crew and its lead (`Crew 4 · Jhonny`), time, customer and city, service, and chips for status and (office) Deposit, Permit, Material and 48-h confirmation. A chip always says its state in words (`Deposit 50% ✓`, `Final payment ✓`, `Deposit ?`, `Permit requested`, `Material not ordered`, `To showroom`); an unknown deposit is never shown as OK (D-003). The note sits in its own box (red, "Stopped", when the job has an issue), and the editor shows who changed the job last. One button does the usual next step (**Start**, **Done** or **Resume**); **Issue** asks why, with one-tap reasons, and saves the status and note together. Tapping the card opens the full editor. After every save a message offers **Undo** for a few seconds.
 
 **Needs attention.** Above the cards, one chip per open item for today and the next workday, like the TV alerts: stopped jobs, deposit pending (or unknown), and for the next workday 48-h confirmation, material and permit pending. Crew leads see only stopped jobs. Tapping a chip shows just those jobs.
 
@@ -117,7 +117,7 @@ The board shows customer names, so the whole app is private (spec §8). Every pa
 2. Set it as `BOARD_ACCESS_TOKEN` in Vercel (Production and Preview) and redeploy.
 3. On the TV, open the board. It goes to `https://<board url>/login`. Type the code once. The board stores an httpOnly cookie (a hash of the code, valid 400 days). The code is never put in the address, so it does not end up in the browser history.
 
-Without the cookie, pages go to `/login` and APIs answer 401. In production, a missing or short code blocks everything (503) rather than leaving the board open. Locally, without a code, the app stays open.
+Without the cookie, pages go to `/login` and APIs answer 401. People signed in to `/control` can also open the board (the **Board** button) without the code. In production, a missing or short code blocks everything (503) rather than leaving the board open. Locally, without a code, the app stays open.
 
 To rotate: set a new code, redeploy, and type it again at `/login` on each screen. The old cookies stop working immediately.
 

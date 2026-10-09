@@ -21,6 +21,7 @@ export interface ControlJob {
   allDay?: true;
   routeOrder?: number;
   values: Partial<Record<Field, string>>;
+  updated?: string; // "Diandra · Oct 9, 2:15 PM"
   warnings: string[];
 }
 
@@ -43,6 +44,7 @@ export function toControlJob(j: Job): ControlJob {
     ...(j.allDay ? { allDay: true as const } : {}),
     ...(j.routeOrder !== undefined ? { routeOrder: j.routeOrder } : {}),
     values: currentValues(j),
+    ...(j.updated ? { updated: j.updated } : {}),
     warnings: j.parseWarnings,
   };
 }

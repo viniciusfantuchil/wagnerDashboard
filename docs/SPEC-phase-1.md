@@ -103,13 +103,17 @@ Description keys (case-insensitive; missing key = `unknown`):
 
 ```
 Status: SCHEDULED | IN PROGRESS | ISSUE | DONE | POSTPONED
-Deposit: OK | PENDING
-Permit: OK | PENDING | N/A
-Material: OK | PENDING
+Deposit: PENDING | OK | FINAL          # OK = 50% deposit received; FINAL = final payment received
+Permit: REQUESTED | APPROVED | N/A     # PENDING (not requested yet) still reads
+Material: NOT ORDERED | ORDERED
+Delivery: JOB SITE | SHOWROOM          # where the material goes; information only
 Confirm48: SENT | PENDING
 Day: 2/2
 Note: free text shown on the board
+Updated: written by the control screen (who and when)
 ```
+
+`deposit = ok` for OK or FINAL; `permit = ok` for APPROVED or N/A (REQUESTED and PENDING are `missing`); `material = ok` for ORDERED. Older events with `OK` / `PENDING` keep reading (Permit OK = approved, Material OK = ordered). Decided 2026-10-09 with the office.
 
 Status comes from the `Status:` line (missing line = Scheduled). It was first proposed as the event color, but the calendars already use colors to identify the crews (Crew 1 orange, Excavation red, …), so a red Excavation event would have read as "Issue". Decided 2026-10-09.
 

@@ -24,8 +24,18 @@ export interface Job {
   material: Check;
   confirm48: Check;
   note?: string;
+  /**
+   * Readiness lines as written, normalized to the control screen's values (docs/CALENDAR-GUIDE.md), e.g.
+   * { Deposit: "FINAL", Permit: "REQUESTED", Material: "ORDERED", Delivery: "SHOWROOM" }. The checks above
+   * hold what the alert rules need; these keep the detail (requested vs. not, 50% vs. final payment, where to deliver).
+   */
+  lines?: Partial<Record<ReadinessLine, string>>;
+  /** "Diandra · Oct 9, 2:15 PM" from the event's Updated: line, written by the control screen. */
+  updated?: string;
   parseWarnings: string[];
 }
+
+export type ReadinessLine = "Deposit" | "Permit" | "Material" | "Confirm48" | "Delivery";
 
 export interface Visit {
   id: string;
