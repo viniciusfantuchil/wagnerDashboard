@@ -1,37 +1,53 @@
 import { crewRank } from "@/lib/crews";
+import { locateAll } from "@/lib/geo/geocode";
 import { buildAlerts } from "@/lib/rules/alerts";
 import { nextWorkday, readyRows } from "@/lib/rules/readiness";
-import { getSources, type ScheduleSource, type WeatherSource } from "@/lib/sources";
+import { getSources, OFFLINE_GEOCODER, type Sources } from "@/lib/sources";
 import { nyDate } from "@/lib/time";
-import type { Board, BoardJob, BoardVisit, Job } from "@/lib/types";
+import type { Board, BoardJob, BoardVisit, Job, Visit } from "@/lib/types";
 
 /** Numbers today's jobs in crew order, then start time, and drops the street address. */
-export function numberJobs(jobs: Job[]): BoardJob[] {
+export function numberJobs(jobs: (Job & { approx?: true })[]): BoardJob[] {
   return [...jobs]
     .sort((a, b) => crewRank(a.crew) - crewRank(b.crew) || a.start.localeCompare(b.start))
     .map(({ address: _address, ...job }, i) => ({ ...job, pin: i + 1 }))
     .sort((a, b) => Date.parse(a.start) - Date.parse(b.start) || a.pin - b.pin);
 }
 
-export async function buildBoard(
-  now = new Date(),
-  sources?: { schedule: ScheduleSource; weather: WeatherSource },
-): Promise<Board> {
+/** Fills in lat/lon for items the source did not place, from the street address or the city center. */
+async function placeOnMap<T extends Job | Visit>(items: T[], geocoder: Sources["geocoder"]): Promise<(T & { approx?: true })[]> {
+  const missing = items.filter((i) => i.lat === undefined || i.lon === undefined);
+  if (missing.length === 0) return items;
+  const located = await locateAll(missing, geocoder ?? OFFLINE_GEOCODER);
+  const byItem = new Map(missing.map((item, i) => [item, located[i]]));
+  return items.map((item) => {
+    const at = byItem.get(item);
+    return at ? { ...item, lat: at.lat, lon: at.lon, ...(at.approx ? { approx: true as const } : {}) } : item;
+  });
+}
+
+export async function buildBoard(now = new Date(), sources?: Sources): Promise<Board> {
   const date = nyDate(now);
   const next = nextWorkday(date);
-  const { schedule, weather: weatherSource } = sources ?? getSources(date);
+  const { schedule, weather: weatherSource, geocoder } = sources ?? getSources(date);
 
   const [today, tomorrow, weather, bookedThrough] = await Promise.all([
     schedule.getDay(date),
     schedule.getDay(next),
-    weatherSource.getForecast(date),
+    // Weather is not worth losing the schedule over: without it the board shows "Weather unavailable".
+    weatherSource.getForecast(date).catch((err: unknown) => {
+      console.error("Weather forecast failed:", err);
+      return null;
+    }),
     schedule.getBookedThrough(date),
   ]);
 
-  const jobs = numberJobs(today.jobs);
-  const visits: BoardVisit[] = [...today.visits]
+  const [placedJobs, placedVisits] = await Promise.all([placeOnMap(today.jobs, geocoder), placeOnMap(today.visits, geocoder)]);
+
+  const jobs = numberJobs(placedJobs);
+  const visits: BoardVisit[] = [...placedVisits]
     .sort((a, b) => Date.parse(a.start) - Date.parse(b.start))
-    .map((v, i) => ({ ...v, key: `K${i + 1}` }));
+    .map(({ address: _address, ...v }, i) => ({ ...v, key: `K${i + 1}` }));
 
   return {
     generatedAt: now.toISOString(),
@@ -39,7 +55,7 @@ export async function buildBoard(
     jobs,
     visits,
     weather,
-    alerts: buildAlerts({ today: jobs, nextWorkday: { date: next, jobs: tomorrow.jobs }, hourly: weather.hourly }),
+    alerts: buildAlerts({ today: jobs, nextWorkday: { date: next, jobs: tomorrow.jobs }, hourly: weather?.hourly ?? [] }),
     nextWorkday: { date: next, rows: readyRows(tomorrow.jobs) },
     bookedThrough,
     sources: {

@@ -36,14 +36,14 @@ export function rainDuring(job: RuleJob, hourly: HourlyRain[]): HourlyRain[] {
   const to = minuteOfDay(job.end);
   return hourly.filter((h) => {
     const m = minuteOfDay(h.start);
-    return m < to && m + 60 > from && h.pop >= RAIN_ALERT_PCT;
+    return m < to && m + 60 > from && h.pop !== null && h.pop >= RAIN_ALERT_PCT;
   });
 }
 
 /** "50% rain 2–5 PM" for hours at or above the threshold, or null when there are none. */
 export function rainSummary(hours: HourlyRain[]): string | null {
   if (hours.length === 0) return null;
-  const max = Math.max(...hours.map((h) => h.pop));
+  const max = Math.max(...hours.map((h) => h.pop ?? 0));
   const first = Math.floor(minuteOfDay(hours[0].start) / 60);
   const last = Math.floor(minuteOfDay(hours[hours.length - 1].start) / 60);
   return `${max}% rain ${hourRange(first, last + 1)}`;
@@ -83,7 +83,7 @@ export function buildAlerts({ today, nextWorkday, hourly }: AlertInput): Alert[]
       label: "Stopped",
       title: `${todayName(job)}: ${job.note ? lowerFirst(job.note) : "stopped"}`,
       text: [
-        `${crewLead(job.crew)} waiting since ${clock12(job.start)}.`,
+        job.allDay ? `${crewLead(job.crew)} is waiting.` : `${crewLead(job.crew)} waiting since ${clock12(job.start)}.`,
         job.note ? hint : "Add a Note to the event with the reason.",
       ]
         .filter(Boolean)
@@ -99,7 +99,7 @@ export function buildAlerts({ today, nextWorkday, hourly }: AlertInput): Alert[]
     add(job, {
       severity: "warning",
       label: "Weather",
-      title: `${todayName(job)}: ${lowerFirst(job.service)} at ${clock12(job.start)}`,
+      title: `${todayName(job)}: ${lowerFirst(job.service)} ${job.allDay ? "today" : `at ${clock12(job.start)}`}`,
       text: `${rain}. Confirm with ${crewLead(job.crew)} or reschedule.`,
     });
   }

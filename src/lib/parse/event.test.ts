@@ -157,6 +157,32 @@ describe("old-style titles", () => {
   });
 });
 
+describe("titles seen on the Wagner calendars", () => {
+  it.each([
+    ["Stop @ Barry Schiedel", "Barry Schiedel", "Stop", undefined],
+    ["Stop @ Halfhide – Repair", "Halfhide", "Repair", undefined],
+    ["(Morning) Pam Gonzalez – 1038sf Sealer", "Pam Gonzalez", "1038sf Sealer", undefined],
+    ["Robert Garrett – 645sf Driveway Ext + 310sf Repair", "Robert Garrett", "645sf Driveway Ext + 310sf Repair", undefined],
+    ["Ashley Spring – Driveway 1626 sf", "Ashley Spring", "Driveway", "1626 sf"],
+  ])("reads %j", (summary, customer, service, size) => {
+    const j = job({ summary });
+    expect([j.customer, j.service, j.size]).toEqual([customer, service, size]);
+    expect(j.parseWarnings).toEqual([]);
+  });
+
+  it("reads 'Estimate' titles as estimate visits", () => {
+    const r = parseEvent(event({ summary: "Estimate – Kathy Metz – Driveway" }), "Excavation · Bira");
+    expect(r).toMatchObject({ kind: "visit", visit: { customer: "Kathy Metz", service: "Driveway" } });
+    const bare = parseEvent(event({ summary: "Estimate" }), "Excavation · Bira");
+    expect(bare).toMatchObject({ kind: "visit", visit: { customer: "Estimate", service: "Estimate" } });
+  });
+
+  it("marks all-day estimate visits", () => {
+    const r = parseEvent(event({ summary: "EST – Pike", start: { date: "2026-10-09" }, end: { date: "2026-10-10" } }), "Excavation · Bira");
+    expect(r.kind === "visit" && r.visit.allDay).toBe(true);
+  });
+});
+
 describe("estimate visits", () => {
   it.each([
     ["EST – Sorensen – Driveway", "Sorensen", "Driveway"],
@@ -165,7 +191,7 @@ describe("estimate visits", () => {
     ["EST – Romano", "Romano", "Estimate"],
   ])("reads %j", (summary, customer, service) => {
     const v = visit({ summary, location: "55 Ocean Blvd, Cocoa Beach, FL 32931", start: { dateTime: "2026-10-09T16:00:00-04:00" } });
-    expect(v).toEqual({ id: "evt1", start: "2026-10-09T16:00:00-04:00", customer, city: "Cocoa Beach", service });
+    expect(v).toEqual({ id: "evt1", start: "2026-10-09T16:00:00-04:00", customer, address: "55 Ocean Blvd, Cocoa Beach, FL 32931", city: "Cocoa Beach", service });
   });
 
   it("does not treat a customer named Esteban as an estimate", () => {
@@ -216,10 +242,14 @@ describe("location", () => {
 });
 
 describe("times", () => {
-  it("places all-day events in the workday, with a warning", () => {
+  it("marks all-day events and places them in the workday, without a warning", () => {
     const j = job({ start: { date: "2026-10-09" }, end: { date: "2026-10-10" } });
-    expect([j.start, j.end]).toEqual(["2026-10-09T07:00:00-04:00", "2026-10-09T16:00:00-04:00"]);
-    expect(j.parseWarnings).toEqual([WARN.allDay]);
+    expect([j.start, j.end, j.allDay]).toEqual(["2026-10-09T07:00:00-04:00", "2026-10-09T16:00:00-04:00", true]);
+    expect(j.parseWarnings).toEqual([]);
+  });
+
+  it("does not mark timed events as all-day", () => {
+    expect(job().allDay).toBeUndefined();
   });
 
   it("places a multi-day all-day event on the day being shown", () => {

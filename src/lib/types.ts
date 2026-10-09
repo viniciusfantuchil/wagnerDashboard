@@ -8,6 +8,7 @@ export interface Job {
   crew: string; // from the calendar name, e.g. "Crew 2 · Jorge"
   start: string;
   end: string;
+  allDay?: true; // all-day calendar event: start/end are placeholders for the workday
   customer: string;
   address: string; // server only: never rendered on screen
   city: string;
@@ -28,7 +29,9 @@ export interface Job {
 export interface Visit {
   id: string;
   start: string;
+  allDay?: true;
   customer: string;
+  address?: string; // server only: never rendered on screen
   city: string;
   lat?: number;
   lon?: number;
@@ -37,14 +40,14 @@ export interface Visit {
 
 export interface HourlyRain {
   start: string; // start of the hour, ISO
-  pop: number; // probability of precipitation, 0–100
+  pop: number | null; // probability of precipitation, 0–100; null for hours with no forecast (already past)
 }
 
 export interface Weather {
   location: string; // "Rockledge"
-  tempF: number;
-  highF: number;
-  lowF: number;
+  tempF: number | null;
+  highF: number | null;
+  lowF: number | null;
   wind: string; // "NE 12 mph"
   lightning?: string; // "risk this afternoon"
   hourly: HourlyRain[];
@@ -61,11 +64,13 @@ export interface Alert {
 /** A job on today's board, with the number shown on its pin and card. The street address stays on the server. */
 export interface BoardJob extends Omit<Job, "address"> {
   pin: number;
+  approx?: true; // map position is the city center, not the street address
 }
 
 /** A visit on today's board, with its map key (K1, K2, ...). */
-export interface BoardVisit extends Visit {
+export interface BoardVisit extends Omit<Visit, "address"> {
   key: string;
+  approx?: true;
 }
 
 export interface ReadyRow {
@@ -85,7 +90,7 @@ export interface Board {
   date: string; // today, YYYY-MM-DD in America/New_York
   jobs: BoardJob[]; // sorted by start time, then pin
   visits: BoardVisit[];
-  weather: Weather;
+  weather: Weather | null; // null when the forecast could not be loaded
   alerts: Alert[]; // all alerts, ranked; the screen shows the first 6
   nextWorkday: { date: string; rows: ReadyRow[] };
   bookedThrough: string | null;

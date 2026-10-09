@@ -4,7 +4,7 @@ Wall display for the office TV: today's jobs by crew, a map of Brevard County, j
 
 ## Status
 
-Phase 1 in progress. The board reads the crew schedule from Google Calendar when it is configured (below), and falls back to the prototype's sample data otherwise. Weather is still sample data until the NWS source lands.
+Phase 1 in progress. The board reads the crew schedule from Google Calendar when it is configured (below), with the live National Weather Service forecast for Rockledge. Without Google credentials it falls back to the prototype's sample schedule and sample weather.
 
 - Visual prototype (sample data): open `prototype/index.html` in a browser.
 - Phase 1 spec: [`docs/SPEC-phase-1.md`](docs/SPEC-phase-1.md)
@@ -29,12 +29,23 @@ npm run build
 | `src/lib/board.ts` | Builds the `Board` payload from the sources and rules |
 | `src/lib/sources/` | `ScheduleSource` / `WeatherSource` interfaces and the sample implementation |
 | `src/lib/sources/calendar.ts` | `GoogleCalendarSource`: reads each crew calendar with the service account |
+| `src/lib/sources/weather.ts` | `NwsWeatherSource`: hourly forecast from api.weather.gov (no key needed) |
+| `src/lib/geo/geocode.ts` | Address → map position (US Census geocoder for now; city center as fallback) |
 | `src/lib/google/auth.ts` | Service account access tokens (no Google SDK) |
 | `src/proxy.ts`, `src/lib/access.ts` | Access control: every page and API route needs `BOARD_ACCESS_TOKEN` |
 | `src/lib/parse/event.ts` | Google Calendar event → `Job` or `Visit`, per the calendar convention (spec §6) |
 | `src/lib/rules/alerts.ts` | Alert rules (spec §7) |
 | `src/lib/rules/readiness.ts` | Next workday and ready-check rows |
 | `src/components/` | Screen components; styles in `src/app/globals.css` are copied from the prototype |
+
+## Map positions
+
+Job and visit addresses are placed on the map on the server, with the free **US Census Bureau geocoder** (no key). The spec leaves the provider open (Mapbox or Google, §12). The geocoder sits behind the `Geocoder` interface, so it can be swapped once an account exists.
+
+- When the street address is found, the pin is exact.
+- When the event has no street address, or the geocoder cannot find it, the pin goes to the city center with a dashed outline ("Approx. location").
+- Lookups are cached in memory per server instance. A persistent cache (spec §4, KV) is still to do.
+- Street addresses are sent to the Census geocoder only. They never reach the browser.
 
 ## Access control
 
