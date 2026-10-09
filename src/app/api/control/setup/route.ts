@@ -1,7 +1,7 @@
 import { ACCESS_COOKIE, cookieValue } from "@/lib/access";
 import { AdminError, createUser, needsSetup } from "@/lib/control/admin";
 import { cookieFrom, envUsers, NO_STORE, sameOrigin } from "@/lib/control/session";
-import { getUserStore } from "@/lib/control/store";
+import { getUserStore, StoreError } from "@/lib/control/store";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +17,8 @@ export async function POST(request: Request) {
   }
   const store = getUserStore();
   if (!store) return Response.json({ error: "Set USERS_SHEET_ID in Vercel first." }, { status: 503, headers: NO_STORE });
-  if (!(await needsSetup(store, envUsers()))) return Response.json({ error: "Setup is already done. Sign in instead." }, { status: 409, headers: NO_STORE });
   try {
+    if (!(await needsSetup(store, envUsers()))) return Response.json({ error: "Setup is already done. Sign in instead." }, { status: 409, headers: NO_STORE });
     const body = (await request.json()) as Record<string, unknown>;
     const user = await createUser(store, envUsers(), { ...body, role: "admin" }, { username: "setup", name: "Setup", office: true });
     console.info(`Control setup: first admin ${user.username} created`);
@@ -26,6 +26,6 @@ export async function POST(request: Request) {
   } catch (err) {
     if (err instanceof AdminError) return Response.json({ error: err.message }, { status: err.status, headers: NO_STORE });
     console.error("Setup failed:", err);
-    return Response.json({ error: "Could not create the admin" }, { status: 502, headers: NO_STORE });
+    return Response.json({ error: err instanceof StoreError ? err.hint : "Could not create the admin" }, { status: 502, headers: NO_STORE });
   }
 }

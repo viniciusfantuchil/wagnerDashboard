@@ -7,7 +7,7 @@ import { GET as LIST, POST as ADD } from "@/app/api/control/users/route";
 import { ACCESS_COOKIE, cookieValue } from "@/lib/access";
 import { AdminError, createUser, needsSetup, removeUser, updateUser } from "./admin";
 import { hashPassword } from "./password";
-import { getUserStore, GoogleSheetsUserStore, MemoryUserStore, setUserStoreForTests, SHEET_COLUMNS, type StoredUser } from "./store";
+import { getUserStore, GoogleSheetsUserStore, MemoryUserStore, setUserStoreForTests, SHEET_COLUMNS, storeHint, type StoredUser } from "./store";
 import { CONTROL_COOKIE, directory, parseControlUsers, sessionCookie, userForSession, type ControlUser } from "./users";
 
 const ADMIN: ControlUser = { username: "vinicius", name: "Vinicius", office: true, admin: true };
@@ -73,6 +73,16 @@ describe("GoogleSheetsUserStore", () => {
     expect(getUserStore({ USERS_SHEET_ID: "S" })).toBeNull();
     const key = JSON.stringify({ client_email: "a@b.iam.gserviceaccount.com", private_key: "k" });
     expect(getUserStore({ USERS_SHEET_ID: "S", GOOGLE_SERVICE_ACCOUNT_JSON: key })).toBeInstanceOf(GoogleSheetsUserStore);
+  });
+
+  it.each([
+    [403, '{"error":{"status":"PERMISSION_DENIED","details":[{"reason":"SERVICE_DISABLED"}]}}', /Sheets API is off/],
+    [403, '{"error":{"status":"PERMISSION_DENIED","message":"The caller does not have permission"}}', /Share the sheet/],
+    [404, '{"error":{"message":"Requested entity was not found."}}', /Check USERS_SHEET_ID/],
+    [400, '{"error":{"message":"This operation is not supported for this document"}}', /Excel file/],
+    [500, "oops", /HTTP 500/],
+  ])("explains Google error %i in plain English", (status, body, hint) => {
+    expect(storeHint(status, body)).toMatch(hint);
   });
 
   it("reports Google errors", async () => {
@@ -179,6 +189,15 @@ describe("first admin and user management, end to end", () => {
     expect((await ok.json()).user).toMatchObject({ username: "vinicius", role: "admin" });
     expect(ok.headers.get("cache-control")).toBe("no-store, max-age=0");
     expect((await SETUP(req("POST", "/api/control/setup", { ...body, username: "intruder" }, tv))).status).toBe(409);
+  });
+
+  it("tells the admin what to fix when the users sheet cannot be reached, instead of a bare error 500", async () => {
+    const forbidden = new GoogleSheetsUserStore("S", { token: async () => "T" }, (async () =>
+      new Response('{"error":{"code":403,"status":"PERMISSION_DENIED","message":"The caller does not have permission"}}', { status: 403 })) as unknown as typeof fetch);
+    setUserStoreForTests(forbidden);
+    const res = await SETUP(req("POST", "/api/control/setup", { username: "vinicius", name: "Vinicius", password: "admin-pass-1" }, `${ACCESS_COOKIE}=${cookieValue(TV)}`));
+    expect(res.status).toBe(502);
+    expect((await res.json()).error).toMatch(/Share the sheet with the service account's email as Editor/);
   });
 
   it("lets the admin add a person who can then sign in; nobody else can manage users", async () => {

@@ -27,6 +27,30 @@ const RANGE = "A1:I";
 /** Sign-in checks read the sheet; this keeps Google's per-minute read quota out of reach. Writes clear it. */
 const CACHE_MS = 30_000;
 
+/** The sheet could not be read or written. `hint` tells an admin what to fix, without any secret in it. */
+export class StoreError extends Error {
+  constructor(
+    message: string,
+    readonly hint: string,
+  ) {
+    super(message);
+  }
+}
+
+/** Plain-English fix for a Google Sheets API error, from its status and message. */
+export function storeHint(status: number, body: string): string {
+  if (/SERVICE_DISABLED|has not been used|is disabled/i.test(body)) {
+    return "The Google Sheets API is off. Enable it in the Google Cloud project of the service account, wait a minute and try again.";
+  }
+  if (status === 403 || status === 401) return "The service account cannot open the users sheet. Share the sheet with the service account's email as Editor.";
+  if (status === 404) return "The users sheet was not found. Check USERS_SHEET_ID in Vercel (the ID between /d/ and /edit) and redeploy.";
+  if (status === 400 && /not supported for this document/i.test(body)) {
+    return "The users file is an Excel file, not a Google Sheet. In Google Drive create a new Google Sheet and use its ID.";
+  }
+  if (status === 429) return "Google is limiting requests to the users sheet. Try again in a minute.";
+  return `The users sheet answered HTTP ${status}. Try again shortly.`;
+}
+
 type Row = (string | number | boolean | undefined)[];
 const cell = (v: Row[number]) => (v === undefined || v === null ? "" : String(v).trim());
 
@@ -77,7 +101,10 @@ export class GoogleSheetsUserStore implements UserStore {
       body: body ? JSON.stringify(body) : undefined,
       cache: "no-store",
     });
-    if (!res.ok) throw new Error(`User store: HTTP ${res.status} ${await safeText(res)}`);
+    if (!res.ok) {
+      const text = await safeText(res);
+      throw new StoreError(`User store: HTTP ${res.status} ${text}`, storeHint(res.status, text));
+    }
     return (await res.json()) as { values?: Row[] };
   }
 

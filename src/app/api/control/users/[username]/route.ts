@@ -1,6 +1,6 @@
 import { AdminError, removeUser, updateUser } from "@/lib/control/admin";
 import { controlUserFromRequest, envUsers, NO_STORE, sameOrigin } from "@/lib/control/session";
-import { getUserStore } from "@/lib/control/store";
+import { getUserStore, StoreError } from "@/lib/control/store";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ async function guard(request: Request) {
 const fail = (err: unknown) => {
   if (err instanceof AdminError) return Response.json({ error: err.message }, { status: err.status, headers: NO_STORE });
   console.error("User change failed:", err);
-  return Response.json({ error: "Could not save the change" }, { status: 502, headers: NO_STORE });
+  return Response.json({ error: err instanceof StoreError ? err.hint : "Could not save the change" }, { status: 502, headers: NO_STORE });
 };
 
 /** Change a user's name, role or password. A new password signs that person out everywhere. */
