@@ -61,6 +61,15 @@ const ESTIMATE = /^(?:EST|Estimate)\b\s*[–—:-]?\s*/i;
 const STOP = /^stop\s*@\s*/i;
 /** "(Morning) Pam Gonzalez": a leading time-of-day note, not part of the name. */
 const LEADING_NOTE = /^\([^)]{1,20}\)\s*/;
+/** "– 2" at the end of a title: the stop's place in the crew's route. */
+const ROUTE_ORDER = /^\d{1,2}$/;
+
+/** Service to show when the title only gives a customer and a route number. */
+function defaultService(crew: string): string {
+  if (/^seal/i.test(crew)) return "Sealing";
+  if (/^excavat/i.test(crew)) return "Excavation";
+  return "Stop";
+}
 const SIZE = /\b(\d[\d,]*(?:\.\d+)?)\s*(sq\.?\s*ft|sqft|sf|ln\.?\s*ft|lnft|lin\.?\s*ft|lf)\.?$/i;
 const MONEY = /\$\s?\d[\d,]*(?:\.\d+)?k?/gi;
 const PAYMENT = /\b(?:paid|unpaid|pd|deposit|dep|balance|bal|due|pending|invoice[sd]?|\d{1,3}\s?%)(?=\W|$)\.?/gi;
@@ -211,10 +220,23 @@ export function parseEvent(event: CalendarEvent, crew: string, onDate?: string):
   let customer = head?.trim() ?? "";
   let service = "";
   let size: string | undefined;
+  // A bare number is the crew's route order (the sequence Jardel should follow), not a service:
+  // "Linda Green – 1", "Stop @ Shafer – 4", or right after the name on a stop, "Stop @ Merker 3".
+  let routeOrder: number | undefined;
+  if (rest.length > 0 && ROUTE_ORDER.test(rest[rest.length - 1].trim())) {
+    routeOrder = Number(rest.pop()!.trim());
+  } else if (isStop && rest.length === 0) {
+    const m = customer.match(/^(.*\D)\s+(\d{1,2})$/);
+    if (m) {
+      customer = m[1].trim();
+      routeOrder = Number(m[2]);
+    }
+  }
   if (rest.length > 0 && customer) {
     ({ service, size } = splitSize(rest.join(" – ")));
   }
   if (!service && isStop && customer) service = "Stop";
+  if (!service && routeOrder !== undefined && customer) service = defaultService(crew);
   if (!service) {
     warnings.push(WARN.title);
     if (!customer) customer = scrubbed.text || "Untitled";
@@ -268,6 +290,7 @@ export function parseEvent(event: CalendarEvent, crew: string, onDate?: string):
       service,
       size,
       day,
+      ...(routeOrder !== undefined ? { routeOrder } : {}),
       status,
       deposit,
       permit,

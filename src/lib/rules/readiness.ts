@@ -18,7 +18,12 @@ export function nextWorkday(date: string, worksSaturday = WORKS_SATURDAY): strin
 /** Ready-check rows for the next workday, in crew order then start time. */
 export function readyRows(jobs: Job[]): ReadyRow[] {
   return [...jobs]
-    .sort((a, b) => crewRank(a.crew) - crewRank(b.crew) || a.start.localeCompare(b.start))
+    .sort(
+      (a, b) =>
+        crewRank(a.crew) - crewRank(b.crew) ||
+        a.start.localeCompare(b.start) ||
+        (a.routeOrder ?? Infinity) - (b.routeOrder ?? Infinity),
+    )
     .map((j) => ({
       jobId: j.id,
       customer: j.customer,

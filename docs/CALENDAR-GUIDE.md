@@ -17,8 +17,10 @@ The board never guesses. If the deposit is not written in the event, the board s
 | `Whitaker – Sealing 900 sf` | Whitaker · Sealing 900 sf |
 | `Stop @ Barry Schiedel` | Barry Schiedel · Stop |
 | `EST – Sorensen – Driveway` or `Estimate – Sorensen – Driveway` | an estimate visit for Kevin, not a job |
+| `Linda Green – 1`, `Stop @ Shafer – 4` | stop 1 / stop 4 of the crew's route for the day |
 
 - Use a dash with spaces around it between the customer and the service.
+- A number at the end is the **route order**: the sequence the crew should follow (Jardel's sealing stops). The board numbers the crew's pins in that order and draws the route on the map.
 - **No dollar amounts and no payment words in the title** ("paid", "50%", "$2,500"). The board removes them and flags the event. Payment status goes in the description.
 
 ## 2. Location

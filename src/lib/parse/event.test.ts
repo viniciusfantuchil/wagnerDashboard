@@ -183,6 +183,32 @@ describe("titles seen on the Wagner calendars", () => {
   });
 });
 
+describe("route order (the sequence the crew should follow)", () => {
+  const SEAL = "Sealing · Jardel";
+  it.each([
+    ["Linda Green – 1", "Linda Green", "Sealing", 1],
+    ["Mark & Anne Persichetti - 2", "Mark & Anne Persichetti", "Sealing", 2],
+    ["Stop @ Shafer – 4", "Shafer", "Stop", 4],
+    ["Stop @ Merker 3", "Merker", "Stop", 3],
+    ["Pam Gonzalez – 1038sf Sealer – 5", "Pam Gonzalez", "1038sf Sealer", 5],
+  ])("reads %j", (summary, customer, service, routeOrder) => {
+    const j = job({ summary }, SEAL);
+    expect([j.customer, j.service, j.routeOrder]).toEqual([customer, service, routeOrder]);
+    expect(j.parseWarnings).toEqual([]);
+  });
+
+  it("uses the crew's work as the service when the title has only a name and a number", () => {
+    expect(job({ summary: "Persichetti – 2" }, "Excavation · Bira").service).toBe("Excavation");
+    expect(job({ summary: "Persichetti – 2" }, CREW).service).toBe("Stop");
+  });
+
+  it("does not read sizes or house numbers as a route order", () => {
+    expect(job({ summary: "Hartley – Driveway 420 sf" }).routeOrder).toBeUndefined();
+    expect(job({ summary: "Hartley – 420 sf" }).routeOrder).toBeUndefined();
+    expect(job({ summary: "Merker 3" }).routeOrder).toBeUndefined(); // only on "Stop @" titles
+  });
+});
+
 describe("estimate visits", () => {
   it.each([
     ["EST – Sorensen – Driveway", "Sorensen", "Driveway"],
