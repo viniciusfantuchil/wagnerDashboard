@@ -1,5 +1,6 @@
 // Schematic Brevard County map from the prototype. Kept until the map provider is decided (spec §12).
 
+import { crewColor } from "@/lib/crews";
 import { MAP_H, MAP_W, project, TILE_SIZE, tilePath, tilesFor } from "@/lib/geo/basemap";
 import type { Board, BoardJob, BoardVisit } from "@/lib/types";
 import { statusKey } from "./status";
@@ -26,6 +27,12 @@ const HQ: LatLon = [28.35, -80.748];
 
 const placed = <T extends { lat?: number; lon?: number }>(items: T[]) =>
   items.filter((i): i is T & { lat: number; lon: number } => i.lat !== undefined && i.lon !== undefined);
+
+/** A ring in the crew's calendar color around the status-colored pin. */
+function CrewRing({ crew, x, y, r }: { crew: string; x: number; y: number; r: number }) {
+  const color = crewColor(crew);
+  return color ? <circle className="crew-ring" cx={x} cy={y} r={r} style={{ fill: color }} /> : null;
+}
 
 const MIN_GAP = 26; // px in map units; pins closer than this are fanned out
 const FAN_RADIUS = 24;
@@ -85,6 +92,7 @@ export function BoardMap({ jobs, visits }: { jobs: BoardJob[]; visits: BoardVisi
         const [x, y] = at[shownVisits.length + i];
         return (
           <g key={j.id} className={`pin s-${statusKey(j.status)}${j.approx ? " approx" : ""}`}>
+            <CrewRing crew={j.crew} x={x} y={y} r={19.5} />
             <circle cx={x} cy={y} r={15} />
             <text x={x} y={y}>{j.pin}</text>
           </g>
@@ -132,6 +140,7 @@ export function TileBoardMap({ map, jobs, visits }: { map: NonNullable<Board["ma
         const [x, y] = at[shownVisits.length + i];
         return (
           <g key={j.id} className={`pin s-${statusKey(j.status)}${j.approx ? " approx" : ""}`}>
+            <CrewRing crew={j.crew} x={x} y={y} r={12.5} />
             <circle cx={x} cy={y} r={9.5} />
             <text x={x} y={y}>{j.pin}</text>
           </g>

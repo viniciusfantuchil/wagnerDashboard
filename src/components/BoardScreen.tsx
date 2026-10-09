@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { MAX_ALERTS, RAIN_ALERT_PCT, rainSummary } from "@/lib/rules/alerts";
 import { clock12, clockParts, hourRange, hourShort, minuteOfDay, monthDay, TZ, weekdayShort } from "@/lib/time";
+import { crewColor, crewRank, crewShort } from "@/lib/crews";
 import type { Board, Check } from "@/lib/types";
 import { BoardMap, TileBoardMap } from "./BoardMap";
 import { STATUS_LABEL, statusKey } from "./status";
@@ -28,6 +29,11 @@ function Mark({ v }: { v: Check }) {
   if (v === "ok") return <span className="y">✓</span>;
   if (v === "missing") return <span className="n">Missing</span>;
   return <span className="u">Unknown</span>;
+}
+
+function CrewDot({ crew }: { crew: string }) {
+  const color = crewColor(crew);
+  return color ? <i className="crew-dot" style={{ background: color }} /> : null;
 }
 
 function DepositChip({ v }: { v: Check }) {
@@ -196,6 +202,15 @@ export function BoardScreen({ initial }: { initial: Board }) {
               <span><i style={{ background: "var(--red)" }} />Issue</span>
               <span><i style={{ background: "var(--ink-muted)" }} />Postponed</span>
               <span><i className="dia" />Estimate visit</span>
+              {[...new Set(jobs.map((j) => j.crew))]
+                .filter((c) => crewColor(c))
+                .sort((a, b) => crewRank(a) - crewRank(b))
+                .map((c) => (
+                  <span key={c}>
+                    <i className="ring" style={{ borderColor: crewColor(c) }} />
+                    {crewShort(c)}
+                  </span>
+                ))}
               {[...jobs, ...visits].some((i) => i.approx) && (
                 <span><i className="approx" />Approx. location</span>
               )}
@@ -221,7 +236,11 @@ export function BoardScreen({ initial }: { initial: Board }) {
                 const { hm, ap } = clockParts(j.start);
                 const k = statusKey(j.status);
                 return (
-                  <div key={j.id} className={`job ${j.status === "issue" ? "flag-issue" : ""}`}>
+                  <div
+                    key={j.id}
+                    className={`job ${j.status === "issue" ? "flag-issue" : ""}`}
+                    style={{ "--crew": crewColor(j.crew) ?? "transparent" } as React.CSSProperties}
+                  >
                     <span className={`num s-${k}`}>{j.pin}</span>
                     {j.allDay ? (
                       <span className="t all-day">All day</span>
@@ -235,6 +254,7 @@ export function BoardScreen({ initial }: { initial: Board }) {
                       {j.customer} <small>· {j.city}</small>
                     </span>
                     <span className="what">
+                      <CrewDot crew={j.crew} />
                       <b>{j.crew}</b> · {j.service}
                       {j.size ? ` ${j.size}` : ""}
                       {j.day ? ` · day ${j.day.n} of ${j.day.of}` : ""}
@@ -373,7 +393,8 @@ export function BoardScreen({ initial }: { initial: Board }) {
                       <td>
                         <b>{r.customer}</b>
                         <small>
-                          {r.city} · {r.crew}
+                          {r.city} · <CrewDot crew={r.crewName} />
+                          {r.crew}
                         </small>
                       </td>
                       <td><Mark v={r.deposit} /></td>
