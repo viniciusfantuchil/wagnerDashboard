@@ -14,6 +14,9 @@ const MAX_JOBS = 10;
 const BASE_FS = 18;
 const MIN_FS = 13;
 const RELOAD_MINUTE = 4 * 60; // 4:00 AM
+const STAGE_H = 1080;
+const MIN_STAGE_W = 1760; // narrower windows letterbox top and bottom
+const MAX_STAGE_W = 2560; // wider windows letterbox left and right
 
 const timeFmt = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: TZ });
 const dateFmt = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: TZ });
@@ -86,15 +89,19 @@ export function BoardScreen({ initial }: { initial: Board }) {
     };
   }, []);
 
-  // Scale the 1920x1080 stage to fit the screen.
-  useEffect(() => {
-    const fit = () => {
-      const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
-      if (stageRef.current) stageRef.current.style.transform = `scale(${s})`;
-    };
-    fit();
-    window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
+  // Scale the stage to fit the window. Height is fixed at 1080 px; the width follows the window's shape within
+  // limits, so a browser window fills edge to edge. On a 16:9 TV the stage is exactly 1920x1080.
+  const fit = useCallback(() => {
+    const st = stageRef.current;
+    if (!st) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const width = Math.round(Math.min(MAX_STAGE_W, Math.max(MIN_STAGE_W, (STAGE_H * vw) / vh)));
+    const s = Math.min(vw / width, vh / STAGE_H);
+    const x = (vw - width * s) / 2;
+    const y = (vh - STAGE_H * s) / 2;
+    st.style.width = `${width}px`;
+    st.style.transform = `translate(${x}px, ${y}px) scale(${s})`;
   }, []);
 
   // Shrink text only if a panel would overflow.
@@ -110,6 +117,15 @@ export function BoardScreen({ initial }: { initial: Board }) {
     }
   }, []);
   useLayoutEffect(fitText, [board, fitText]);
+  useLayoutEffect(() => {
+    const onResize = () => {
+      fit();
+      fitText();
+    };
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [fit, fitText]);
   useEffect(() => {
     document.fonts?.ready.then(fitText);
   }, [fitText]);
