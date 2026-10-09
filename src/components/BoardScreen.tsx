@@ -258,6 +258,7 @@ export function BoardScreen({ initial }: { initial: Board }) {
                       <b>{j.crew}</b> · {j.service}
                       {j.size ? ` ${j.size}` : ""}
                       {j.day ? ` · day ${j.day.n} of ${j.day.of}` : ""}
+                      {j.routeOrder ? ` · route stop ${j.routeOrder}` : ""}
                       {j.note ? (
                         <>
                           {" · "}

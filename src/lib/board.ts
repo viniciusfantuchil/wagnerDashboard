@@ -7,10 +7,14 @@ import { getSources, OFFLINE_GEOCODER, type Sources } from "@/lib/sources";
 import { nyDate } from "@/lib/time";
 import type { Board, BoardJob, BoardVisit, Job, Visit } from "@/lib/types";
 
-/** Numbers today's jobs in crew order, then start time, and drops the street address. */
+/** Route stops in their order; jobs without a route number after them. */
+export const byRoute = (a: { routeOrder?: number }, b: { routeOrder?: number }) =>
+  (a.routeOrder ?? Infinity) - (b.routeOrder ?? Infinity);
+
+/** Numbers today's jobs in crew order, then start time, then route order, and drops the street address. */
 export function numberJobs(jobs: (Job & { approx?: true })[]): BoardJob[] {
   return [...jobs]
-    .sort((a, b) => crewRank(a.crew) - crewRank(b.crew) || a.start.localeCompare(b.start))
+    .sort((a, b) => crewRank(a.crew) - crewRank(b.crew) || a.start.localeCompare(b.start) || byRoute(a, b))
     .map(({ address: _address, ...job }, i) => ({ ...job, pin: i + 1 }))
     .sort((a, b) => Date.parse(a.start) - Date.parse(b.start) || a.pin - b.pin);
 }

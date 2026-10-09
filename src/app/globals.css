@@ -194,3 +194,4 @@ footer .src.stale{color:var(--red);font-weight:600}
 .pin .crew-ring{stroke:none}
 .gmap .pin .crew-ring{filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.45))}
 .gmap .pin circle:not(.crew-ring){filter:none}
+.route{fill:none;stroke-dasharray:6 4;stroke-linecap:round;stroke-linejoin:round;opacity:.85}

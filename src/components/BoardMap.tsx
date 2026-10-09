@@ -34,8 +34,33 @@ function CrewRing({ crew, x, y, r }: { crew: string; x: number; y: number; r: nu
   return color ? <circle className="crew-ring" cx={x} cy={y} r={r} style={{ fill: color }} /> : null;
 }
 
-const MIN_GAP = 26; // px in map units; pins closer than this are fanned out
-const FAN_RADIUS = 24;
+/** Dashed line in the crew color through the crew's route stops, in route order ("Linda Green – 1", "– 2", ...). */
+function RouteLines({ jobs, at, width }: { jobs: BoardJob[]; at: [number, number][]; width: number }) {
+  const byCrew = new Map<string, { order: number; at: [number, number] }[]>();
+  jobs.forEach((j, i) => {
+    if (j.routeOrder === undefined) return;
+    byCrew.set(j.crew, [...(byCrew.get(j.crew) ?? []), { order: j.routeOrder, at: at[i] }]);
+  });
+  return (
+    <>
+      {[...byCrew].map(([crew, stops]) => {
+        if (stops.length < 2) return null;
+        const points = stops.sort((a, b) => a.order - b.order).map((s) => s.at.map((v) => v.toFixed(1)).join(","));
+        return (
+          <polyline
+            key={crew}
+            className="route"
+            points={points.join(" ")}
+            style={{ stroke: crewColor(crew) ?? "var(--ink-muted)", strokeWidth: width }}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+const MIN_GAP = 34; // map units; pins (with their crew ring) closer than this are fanned out
+const FAN_RADIUS = 38;
 
 /** Map positions, with pins that would overlap (e.g. several jobs at one city center) fanned out around it. */
 export function spread(points: [number, number][], minGap = MIN_GAP, fanRadius = FAN_RADIUS): [number, number][] {
@@ -79,6 +104,7 @@ export function BoardMap({ jobs, visits }: { jobs: BoardJob[]; visits: BoardVisi
         <rect x={hx - 17} y={hy - 11} width={34} height={22} rx={3} />
         <text x={hx} y={hy}>HQ</text>
       </g>
+      <RouteLines jobs={shownJobs} at={at.slice(shownVisits.length)} width={3} />
       {shownVisits.map((v, i) => {
         const [x, y] = at[i];
         return (
@@ -109,7 +135,7 @@ export function BoardMap({ jobs, visits }: { jobs: BoardJob[]; visits: BoardVisi
 export function TileBoardMap({ map, jobs, visits }: { map: NonNullable<Board["map"]>; jobs: BoardJob[]; visits: BoardVisit[] }) {
   const shownVisits = placed(visits);
   const shownJobs = placed(jobs);
-  const at = spread([...shownVisits, ...shownJobs].map((i) => project(i.lat, i.lon, map)), 16, 15);
+  const at = spread([...shownVisits, ...shownJobs].map((i) => project(i.lat, i.lon, map)), 22, 26);
   const [hx, hy] = project(map.office.lat, map.office.lon, map);
   return (
     <svg
@@ -127,6 +153,7 @@ export function TileBoardMap({ map, jobs, visits }: { map: NonNullable<Board["ma
         <rect x={hx - 11} y={hy - 7} width={22} height={14} rx={2} />
         <text x={hx} y={hy}>HQ</text>
       </g>
+      <RouteLines jobs={shownJobs} at={at.slice(shownVisits.length)} width={2} />
       {shownVisits.map((v, i) => {
         const [x, y] = at[i];
         return (

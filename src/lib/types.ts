@@ -17,6 +17,7 @@ export interface Job {
   service: string; // "Driveway", "Pool deck", "Sealing", ...
   size?: string; // "420 sf", "65 lnft"
   day?: { n: number; of: number };
+  routeOrder?: number; // stop number in the crew's route for the day ("Linda Green – 1")
   status: Status;
   deposit: Check;
   permit: Check;
