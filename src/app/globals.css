@@ -53,7 +53,7 @@ header{display:flex;align-items:center;gap:28px;padding:0 24px 0 12px;background
 .clock .date{font-family:var(--display);font-weight:600;font-size:22px;text-transform:uppercase;color:var(--sand)}
 
 /* Main grid */
-main{display:grid;gap:14px;grid-template-columns:540px minmax(0,1fr) 600px;min-height:0}
+main{display:grid;gap:14px;grid-template-columns:540px minmax(0,1fr) 480px;min-height:0}
 .col{display:flex;flex-direction:column;gap:14px;min-height:0;min-width:0}
 .panel{background:var(--surface-subtle);border:1px solid var(--border);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0;overflow:hidden}
 .panel-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
@@ -152,7 +152,7 @@ main{display:grid;gap:14px;grid-template-columns:540px minmax(0,1fr) 600px;min-h
 
 /* Readiness */
 .ready{width:100%;border-collapse:collapse;font-size:.86em;table-layout:fixed}
-.ready col.c1{width:48%}
+.ready col.c1{width:44%}
 .ready th{font-family:var(--display);font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:.82em;color:var(--ink-muted);text-align:center;padding:2px 4px 5px;border-bottom:1px solid var(--border)}
 .ready th:first-child{text-align:left}
 .ready td{padding:5px 4px;border-bottom:1px solid var(--border);text-align:center}
@@ -174,7 +174,7 @@ footer .src{margin-left:auto;color:var(--ink-muted);font-size:14px;overflow:hidd
 
 /* Additions beyond the prototype */
 .c-unknown{background:var(--surface-sunken);color:var(--ink-muted)}
-.u{display:inline-block;background:var(--surface-sunken);color:var(--ink-muted);font-family:var(--display);font-weight:700;font-size:.78em;text-transform:uppercase;letter-spacing:.05em;padding:1px 8px;border-radius:999px}
+.u{color:var(--warning);font-weight:700}
 .more{font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:.82em;color:var(--ink-muted);padding:2px 12px}
 .empty{color:var(--ink-muted);font-size:.9em;padding:4px 2px}
 .job .t small{font-size:.6em;margin-left:3px}

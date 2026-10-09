@@ -30,7 +30,12 @@ const COUNTS = ["in_progress", "scheduled", "issue", "completed"] as const;
 function Mark({ v }: { v: Check }) {
   if (v === "ok") return <span className="y">✓</span>;
   if (v === "missing") return <span className="n">Missing</span>;
-  return <span className="u">Unknown</span>;
+  // Not written in the calendar yet: never shown as OK (D-003), and a symbol keeps the narrow table readable.
+  return (
+    <span className="u" title="Not in the calendar">
+      ✕
+    </span>
+  );
 }
 
 function CrewDot({ crew }: { crew: string }) {
@@ -406,7 +411,7 @@ export function BoardScreen({ initial }: { initial: Board }) {
                 <h2 id="h-next">
                   Ready Check · {weekdayShort(nextWorkday.date)} {monthDay(nextWorkday.date)}
                 </h2>
-                <span className="eyebrow">Next workday</span>
+                <span className="eyebrow">✕ = not in calendar</span>
               </div>
               <table className="ready">
                 <colgroup>
