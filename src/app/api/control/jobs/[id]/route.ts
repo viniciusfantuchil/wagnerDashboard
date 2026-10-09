@@ -1,6 +1,6 @@
 import { ChangeError, validateChanges } from "@/lib/control/changes";
 import { toControlJob } from "@/lib/control/jobs";
-import { controlUserFromRequest, updatedLine } from "@/lib/control/session";
+import { controlUserFromRequest, sameOrigin, updatedLine } from "@/lib/control/session";
 import { canEditCrew } from "@/lib/control/users";
 import { getWriter } from "@/lib/sources";
 import { WriteError } from "@/lib/sources/calendarWriter";
@@ -12,10 +12,8 @@ const STATUS: Record<WriteError["code"], number> = { not_found: 404, conflict: 4
 /** Saves a job's Status / Deposit / Permit / Material / Confirm48 / Note to its calendar event. */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = controlUserFromRequest(request);
-  if (!user) return Response.json({ error: "Sign in with your personal link" }, { status: 401 });
-  // Same-origin only (the cookie is SameSite=Lax too).
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) return Response.json({ error: "Bad origin" }, { status: 403 });
+  if (!user) return Response.json({ error: "Sign in first" }, { status: 401 });
+  if (!sameOrigin(request)) return Response.json({ error: "Bad origin" }, { status: 403 });
 
   const writer = getWriter();
   if (!writer) return Response.json({ error: "Google Calendar is not connected; sample data is read-only." }, { status: 503 });

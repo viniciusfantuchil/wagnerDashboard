@@ -67,7 +67,9 @@ Job and visit addresses are placed on the map on the server, with the free **US 
 | Office (`"office": true`) | Status, Deposit, Permit, Material, 48-hour confirmation and Note, on every crew's jobs |
 | Crew lead (`"crew": "Crew 2"`) | Status and Note, on their own crew's jobs |
 
-**Personal links.** Each person gets a personal link, `https://<board url>/control?key=<their key>`. They open it once on their phone, and a cookie keeps them signed in for 400 days. The TV token does not open `/control`, and a personal link does not open the TV board.
+**Sign-in.** Each person signs in at `https://<board url>/control` with a username and password. A phone stays signed in for 90 days, and **Sign out** ends the session.
+- **Lockout:** after 5 wrong passwords, that username (and that network address) waits 15 minutes.
+- **Separate from the TV:** the TV token does not open `/control`, and a control login does not open the TV board.
 
 **What gets written.** Only the board's description lines change: `Status:`, `Deposit:`, `Permit:`, `Material:`, `Confirm48:` and `Note:`.
 
@@ -75,20 +77,27 @@ Job and visit addresses are placed on the map on the server, with the free **US 
 - The title, time, location and every other line stay as they are.
 - If someone edited the event in Google Calendar since the screen loaded it, the save is refused (no overwrite) and the person reloads.
 
+**Passwords are stored as hashes, never as the password.** `CONTROL_USERS` holds a PBKDF2 hash (600,000 iterations) for each person. To make one, open `https://<board url>/control/password`, type the password twice, and copy the hash. The hash is computed in your browser, and the password is not sent anywhere.
+
 **Setup**
 
 1. In each crew calendar's **Settings and sharing**, change the board's service account from "See all event details" to **"Make changes to events"**. The board asks Google only for the `calendar.events` scope, for this screen.
-2. Set `CONTROL_USERS` in Vercel, one entry per person, each with a key of at least 24 random characters:
+2. Choose a username and a password (at least 8 characters) for each person, and make a hash for each password at `/control/password`.
+3. Set `CONTROL_USERS` in Vercel. The key is the username:
    ```json
-   {"Diandra": {"key": "…", "office": true}, "Vinicius": {"key": "…", "office": true},
-    "Fernando": {"key": "…", "crew": "Crew 1"}, "Jorge": {"key": "…", "crew": "Crew 2"},
-    "Darwin": {"key": "…", "crew": "Crew 3"}, "Jhonny": {"key": "…", "crew": "Crew 4"},
-    "Felipe": {"key": "…", "crew": "Felipe"}, "Bira": {"key": "…", "crew": "Excavation"},
-    "Jardel": {"key": "…", "crew": "Sealing"}}
+   {"diandra":  {"name": "Diandra",  "password": "pbkdf2$600000$…", "office": true},
+    "vinicius": {"name": "Vinicius", "password": "pbkdf2$600000$…", "office": true},
+    "fernando": {"name": "Fernando", "password": "pbkdf2$600000$…", "crew": "Crew 1"},
+    "jorge":    {"name": "Jorge",    "password": "pbkdf2$600000$…", "crew": "Crew 2"},
+    "darwin":   {"name": "Darwin",   "password": "pbkdf2$600000$…", "crew": "Crew 3"},
+    "jhonny":   {"name": "Jhonny",   "password": "pbkdf2$600000$…", "crew": "Crew 4"},
+    "felipe":   {"name": "Felipe",   "password": "pbkdf2$600000$…", "crew": "Felipe"},
+    "bira":     {"name": "Bira",     "password": "pbkdf2$600000$…", "crew": "Excavation"},
+    "jardel":   {"name": "Jardel",   "password": "pbkdf2$600000$…", "crew": "Sealing"}}
    ```
-3. Redeploy, then send each person their link.
+4. Redeploy, then give each person their username and password.
 
-**To remove someone's access,** change or delete their key and redeploy. Their phone is signed out at once.
+**To reset a password or remove someone,** put a new hash in their entry (or delete the entry) and redeploy. Their phone is signed out at once.
 
 ## Access control
 

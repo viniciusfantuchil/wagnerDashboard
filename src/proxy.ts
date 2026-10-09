@@ -1,52 +1,31 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ACCESS_COOKIE, ACCESS_COOKIE_MAX_AGE_S, ACCESS_PARAM, decideAccess } from "@/lib/access";
-import { CONTROL_COOKIE, CONTROL_COOKIE_MAX_AGE_S, controlCookie, entryFor, parseControlUsers, userForCookie, userForKey } from "@/lib/control/users";
+import { ACCESS_COOKIE, ACCESS_COOKIE_MAX_AGE_S, decideAccess } from "@/lib/access";
+import { CONTROL_COOKIE, parseControlUsers, userForSession } from "@/lib/control/users";
 
 const PAGE = (title: string, text: string) =>
   `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>${title}</title></head>` +
   `<body style="font-family:Arial,sans-serif;display:grid;place-items:center;height:100vh;margin:0;background:#ecebe8;color:#1c1917">` +
   `<div style="text-align:center"><h1 style="margin:0 0 8px">${title}</h1><p style="margin:0;color:#57534e">${text}</p></div></body></html>`;
 
-const html = (title: string, text: string, status: number) =>
-  new NextResponse(PAGE(title, text), { status, headers: { "Content-Type": "text/html; charset=utf-8" } });
+/** Pages and APIs of the control screen that work without a session. */
+const CONTROL_PUBLIC = new Set(["/control/login", "/control/password", "/api/control/login", "/api/control/logout"]);
 
-/** /control and /api/control: each person signs in with their personal link (CONTROL_USERS), not the TV token. */
+/** /control and /api/control: each person signs in with a username and password (CONTROL_USERS), not the TV token. */
 function controlProxy(request: NextRequest) {
-  const api = request.nextUrl.pathname.startsWith("/api/");
-  let users: ReturnType<typeof parseControlUsers>;
+  const path = request.nextUrl.pathname;
+  if (CONTROL_PUBLIC.has(path)) return NextResponse.next();
+  if (userForSession(safeUsers(), request.cookies.get(CONTROL_COOKIE)?.value)) return NextResponse.next();
+  if (path.startsWith("/api/")) return NextResponse.json({ error: "Sign in first" }, { status: 401 });
+  return NextResponse.redirect(new URL("/control/login", request.url));
+}
+
+function safeUsers() {
   try {
-    users = parseControlUsers(process.env.CONTROL_USERS);
+    return parseControlUsers(process.env.CONTROL_USERS);
   } catch (err) {
     console.error(err instanceof Error ? err.message : err);
-    users = [];
+    return [];
   }
-  if (users.length === 0) {
-    return api
-      ? NextResponse.json({ error: "Control screen is not configured" }, { status: 503 })
-      : html("Control screen not configured", "Set CONTROL_USERS in the deployment settings.", 503);
-  }
-
-  const key = request.nextUrl.searchParams.get(ACCESS_PARAM);
-  if (key !== null) {
-    const user = userForKey(users, key);
-    if (!user) return html("Access denied", "This link is not valid. Ask the office for your personal link.", 401);
-    const clean = new URL(request.nextUrl);
-    clean.searchParams.delete(ACCESS_PARAM);
-    const res = NextResponse.redirect(clean);
-    res.cookies.set(CONTROL_COOKIE, controlCookie(entryFor(users, user.name)!), {
-      httpOnly: true,
-      secure: request.nextUrl.protocol === "https:",
-      sameSite: "lax",
-      path: "/",
-      maxAge: CONTROL_COOKIE_MAX_AGE_S,
-    });
-    return res;
-  }
-
-  if (userForCookie(users, request.cookies.get(CONTROL_COOKIE)?.value)) return NextResponse.next();
-  return api
-    ? NextResponse.json({ error: "Sign in with your personal link" }, { status: 401 })
-    : html("Access denied", "Open your personal link from the office once on this phone.", 401);
 }
 
 export function proxy(request: NextRequest) {

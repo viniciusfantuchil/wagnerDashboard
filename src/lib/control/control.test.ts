@@ -1,53 +1,106 @@
-import { generateKeyPairSync } from "node:crypto";
+import { generateKeyPairSync, webcrypto } from "node:crypto";
 import { NextRequest } from "next/server";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { POST as LOGIN } from "@/app/api/control/login/route";
 import { POST } from "@/app/api/control/jobs/[id]/route";
 import { GET } from "@/app/api/control/jobs/route";
 import { parseEvent, type CalendarEvent } from "@/lib/parse/event";
 import { GoogleCalendarWriter, WriteError } from "@/lib/sources/calendarWriter";
 import { proxy } from "@/proxy";
 import { applyChanges, ChangeError, currentValues, validateChanges } from "./changes";
+import { hashPassword, isPasswordHash, verifyPassword } from "./password";
 import { updatedLine } from "./session";
-import { canEditCrew, controlCookie, CONTROL_COOKIE, parseControlUsers, userForCookie, userForKey } from "./users";
+import { LoginThrottle, MAX_FAILURES } from "./throttle";
+import { canEditCrew, checkLogin, CONTROL_COOKIE, entryFor, parseControlUsers, sessionCookie, userForSession } from "./users";
 
-const KEYS = { diandra: "diandra-key-0123456789abcdefghij", jorge: "jorge-key-0123456789abcdefghijkl", jardel: "jardel-key-0123456789abcdefghijk" };
+// Fewer iterations than production (600,000) keeps the tests fast; the format is the same.
+const ITER = 100_000;
+const PASSWORDS = { diandra: "office-pass-123", jorge: "crew2-pass-456", jardel: "sealer-pass-789" };
 const USERS_JSON = JSON.stringify({
-  Diandra: { key: KEYS.diandra, office: true },
-  Jorge: { key: KEYS.jorge, crew: "Crew 2" },
-  Jardel: { key: KEYS.jardel, crew: "Sealing" },
+  diandra: { name: "Diandra", password: hashPassword(PASSWORDS.diandra, ITER), office: true },
+  Jorge: { password: hashPassword(PASSWORDS.jorge, ITER), crew: "Crew 2" },
+  jardel: { name: "Jardel", password: hashPassword(PASSWORDS.jardel, ITER), crew: "Sealing" },
 });
 const users = parseControlUsers(USERS_JSON);
-const office = userForKey(users, KEYS.diandra)!;
-const jorge = userForKey(users, KEYS.jorge)!;
+const office = checkLogin(users, "diandra", PASSWORDS.diandra)!;
+const jorge = checkLogin(users, "jorge", PASSWORDS.jorge)!;
 
-describe("personal links", () => {
-  it("identifies each person by their key", () => {
-    expect(office).toEqual({ name: "Diandra", office: true });
-    expect(jorge).toEqual({ name: "Jorge", office: false, crew: "Crew 2" });
-    expect(userForKey(users, "not-a-key-0123456789abcdefgh")).toBeNull();
+describe("passwords", () => {
+  it("verifies the right password only", () => {
+    const h = hashPassword("correct horse", ITER);
+    expect(isPasswordHash(h)).toBe(true);
+    expect(verifyPassword("correct horse", h)).toBe(true);
+    expect(verifyPassword("correct horsE", h)).toBe(false);
+    expect(verifyPassword("correct horse", "not-a-hash")).toBe(false);
   });
 
-  it("keeps the person signed in with a cookie that does not contain the key", () => {
-    const cookie = controlCookie(users[1]);
-    expect(cookie).not.toContain(KEYS.jorge);
-    expect(userForCookie(users, cookie)).toEqual(jorge);
+  it("accepts the hash the /control/password page makes in the browser (Web Crypto)", async () => {
+    const salt = webcrypto.getRandomValues(new Uint8Array(16));
+    const key = await webcrypto.subtle.importKey("raw", new TextEncoder().encode("from the browser"), "PBKDF2", false, ["deriveBits"]);
+    const bits = await webcrypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: ITER }, key, 256);
+    const b64 = (b: ArrayBuffer | Uint8Array) => Buffer.from(new Uint8Array(b)).toString("base64url");
+    expect(verifyPassword("from the browser", `pbkdf2$${ITER}$${b64(salt)}$${b64(bits)}`)).toBe(true);
+  });
+});
+
+describe("logins", () => {
+  it("signs people in with their username (any case) and password", () => {
+    expect(office).toEqual({ username: "diandra", name: "Diandra", office: true });
+    expect(jorge).toEqual({ username: "jorge", name: "Jorge", office: false, crew: "Crew 2" });
+    expect(checkLogin(users, " JORGE ", PASSWORDS.jorge)?.username).toBe("jorge");
+    expect(checkLogin(users, "jorge", "wrong-password")).toBeNull();
+    expect(checkLogin(users, "nobody", PASSWORDS.jorge)).toBeNull();
   });
 
-  it("refuses forged or outdated cookies", () => {
-    const cookie = controlCookie(users[1]);
-    expect(userForCookie(users, cookie.replace("Jorge", "Diandra"))).toBeNull();
-    const rotated = parseControlUsers(USERS_JSON.replace(KEYS.jorge, "jorge-new-key-0123456789abcdefgh"));
-    expect(userForCookie(rotated, cookie)).toBeNull();
-    expect(userForCookie(users, "garbage")).toBeNull();
+  it("keeps a session for 90 days in a signed cookie without the password", () => {
+    const now = Date.parse("2026-10-09T12:00:00Z");
+    const cookie = sessionCookie(entryFor(users, "jorge")!, now);
+    expect(cookie).not.toContain(PASSWORDS.jorge);
+    expect(userForSession(users, cookie, now)).toEqual(jorge);
+    expect(userForSession(users, cookie, now + 89 * 86_400_000)).toEqual(jorge);
+    expect(userForSession(users, cookie, now + 91 * 86_400_000)).toBeNull();
+  });
+
+  it("refuses forged sessions and signs a person out when their password changes", () => {
+    const cookie = sessionCookie(entryFor(users, "jorge")!);
+    expect(userForSession(users, cookie.replace(/^jorge/, "diandra"))).toBeNull();
+    expect(userForSession(users, cookie.replace(/\.(\d+)\./, (_, e) => `.${Number(e) + 1}.`))).toBeNull();
+    const changed = parseControlUsers(USERS_JSON.replace(/"Jorge":\{"password":"[^"]+"/, `"Jorge":{"password":"${hashPassword("new-pass-000", ITER)}"`));
+    expect(userForSession(changed, cookie)).toBeNull();
+    expect(userForSession(users, "garbage")).toBeNull();
   });
 
   it.each([
-    ['{"A":{"key":"short","office":true}}', /at least 24/],
-    ['{"A":{"key":"0123456789abcdefghijklmnop"}}', /needs "office": true or a crew/],
-    ['{"A":{"key":"0123456789abcdefghijklmnop","crew":"Crew 9"}}', /needs "office": true or a crew/],
+    ['{"a b":{"password":"x","office":true}}', /not a valid username/],
+    ['{"ana":{"password":"plain-text-password","office":true}}', /must be a hash/],
+    [`{"ana":{"password":"${hashPassword("x", ITER)}"}}`, /needs "office": true or a crew/],
+    [`{"ana":{"password":"${hashPassword("x", ITER)}","crew":"Crew 9"}}`, /needs "office": true or a crew/],
     ["[]", /JSON object/],
-  ])("rejects bad CONTROL_USERS %j", (value, error) => {
+  ])("rejects bad CONTROL_USERS %#", (value, error) => {
     expect(() => parseControlUsers(value)).toThrow(error);
+  });
+});
+
+describe("login throttle", () => {
+  it(`locks a username for 15 minutes after ${MAX_FAILURES} wrong passwords`, () => {
+    let now = 0;
+    const t = new LoginThrottle(() => now);
+    for (let i = 0; i < MAX_FAILURES - 1; i++) t.fail(["user:jorge"]);
+    expect(t.waitMs(["user:jorge"])).toBe(0);
+    t.fail(["user:jorge"]);
+    expect(t.waitMs(["user:jorge"])).toBe(15 * 60_000);
+    now += 15 * 60_000;
+    expect(t.waitMs(["user:jorge"])).toBe(0);
+    t.fail(["user:jorge"]);
+    expect(t.waitMs(["user:jorge"])).toBe(0); // counting starts over after the lock
+  });
+
+  it("forgets failures after a successful login", () => {
+    const t = new LoginThrottle(() => 0);
+    for (let i = 0; i < MAX_FAILURES - 1; i++) t.fail(["user:jorge"]);
+    t.succeed(["user:jorge"]);
+    t.fail(["user:jorge"]);
+    expect(t.waitMs(["user:jorge"])).toBe(0);
   });
 });
 
@@ -56,7 +109,7 @@ describe("permissions", () => {
     expect(canEditCrew(jorge, "Crew 2 · Jorge")).toBe(true);
     expect(canEditCrew(jorge, "Crew 3 · Darwin")).toBe(false);
     expect(canEditCrew(office, "Sealing · Jardel")).toBe(true);
-    expect(canEditCrew(userForKey(users, KEYS.jardel)!, "Sealing · Jardel")).toBe(true);
+    expect(canEditCrew(checkLogin(users, "jardel", PASSWORDS.jardel)!, "Sealing · Jardel")).toBe(true);
   });
 
   it("lets crew leads change only Status and Note", () => {
@@ -185,7 +238,7 @@ const KEY_B64 = Buffer.from(
   JSON.stringify({ client_email: "board@x.iam.gserviceaccount.com", private_key: privateKey.export({ type: "pkcs8", format: "pem" }).toString() }),
 ).toString("base64");
 
-const cookieFor = (name: string) => `${CONTROL_COOKIE}=${controlCookie(users.find((u) => u.name === name)!)}`;
+const cookieFor = (name: string) => `${CONTROL_COOKIE}=${sessionCookie(users.find((u) => u.name === name)!)}`;
 const post = (cookie: string | null, body: unknown, origin = "https://board.example.com") =>
   POST(
     new Request("https://board.example.com/api/control/jobs/evt1", {
@@ -257,29 +310,71 @@ describe("control API", () => {
   });
 });
 
+describe("login API", () => {
+  beforeEach(() => vi.stubEnv("CONTROL_USERS", USERS_JSON));
+  afterEach(() => vi.unstubAllEnvs());
+  const login = (username: string, password: string, ip = "203.0.113.7", origin = "https://board.example.com") =>
+    LOGIN(
+      new Request("https://board.example.com/api/control/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", origin, "x-forwarded-for": ip },
+        body: JSON.stringify({ username, password }),
+      }),
+    );
+
+  it("sets a secure, httpOnly session cookie on the right password", async () => {
+    const res = await login("Diandra", PASSWORDS.diandra);
+    expect(res.status).toBe(200);
+    const setCookie = res.headers.get("set-cookie")!;
+    expect(setCookie).toMatch(/^board_control=diandra\.\d+\.[\w-]{43}; Path=\/; Max-Age=7776000; HttpOnly; SameSite=Lax; Secure$/);
+    const value = setCookie.split(";")[0].split("=")[1];
+    expect(userForSession(users, value)).toEqual(office);
+  });
+
+  it("answers the same way for a wrong password and an unknown user", async () => {
+    const a = await login("jorge", "nope-nope", "198.51.100.1");
+    const b = await login("ghost", "nope-nope", "198.51.100.2");
+    expect([a.status, b.status]).toEqual([401, 401]);
+    expect(await a.json()).toEqual(await b.json());
+    expect(a.headers.get("set-cookie")).toBeNull();
+  });
+
+  it(`blocks a username after ${MAX_FAILURES} wrong passwords, even with the right one`, async () => {
+    for (let i = 0; i < MAX_FAILURES; i++) await login("jardel", "wrong-guess", `192.0.2.${i}`);
+    const res = await login("jardel", PASSWORDS.jardel, "192.0.2.99");
+    expect(res.status).toBe(429);
+    expect((await res.json()).error).toMatch(/Too many attempts/);
+  });
+
+  it("refuses cross-site logins", async () => {
+    expect((await login("diandra", PASSWORDS.diandra, "203.0.113.8", "https://evil.example")).status).toBe(403);
+  });
+});
+
 describe("proxy for /control", () => {
   afterEach(() => vi.unstubAllEnvs());
   const req = (path: string, cookie?: string) =>
     new NextRequest(`https://board.example.com${path}`, { headers: cookie ? { cookie } : {} });
 
-  it("signs a person in from their personal link and drops the key from the address", () => {
+  it("sends people without a session to the login page", () => {
     vi.stubEnv("CONTROL_USERS", USERS_JSON);
-    const res = proxy(req(`/control?key=${KEYS.jorge}`));
+    const res = proxy(req("/control"));
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toBe("https://board.example.com/control");
-    expect(res.cookies.get(CONTROL_COOKIE)?.value).toBe(controlCookie(users[1]));
-  });
-
-  it("does not need the TV token, and the TV token does not open /control", () => {
-    vi.stubEnv("CONTROL_USERS", USERS_JSON);
-    vi.stubEnv("BOARD_ACCESS_TOKEN", "tv-token-0123456789abcdefghijk");
-    expect(proxy(req("/control", cookieFor("Jorge"))).headers.get("x-middleware-next")).toBe("1");
-    expect(proxy(req("/control?key=tv-token-0123456789abcdefghijk")).status).toBe(401);
+    expect(res.headers.get("location")).toBe("https://board.example.com/control/login");
     expect(proxy(req("/api/control/jobs")).status).toBe(401);
   });
 
-  it("is closed when CONTROL_USERS is not set", () => {
+  it("keeps the login and password-hash pages open, even before CONTROL_USERS is set", () => {
     vi.stubEnv("CONTROL_USERS", "");
-    expect(proxy(req("/control")).status).toBe(503);
+    for (const path of ["/control/login", "/control/password", "/api/control/login"]) {
+      expect(proxy(req(path)).headers.get("x-middleware-next")).toBe("1");
+    }
+  });
+
+  it("lets a signed-in person through without the TV token, and the TV token does not open /control", () => {
+    vi.stubEnv("CONTROL_USERS", USERS_JSON);
+    vi.stubEnv("BOARD_ACCESS_TOKEN", "tv-token-0123456789abcdefghijk");
+    expect(proxy(req("/control", cookieFor("Jorge"))).headers.get("x-middleware-next")).toBe("1");
+    expect(proxy(req("/control?key=tv-token-0123456789abcdefghijk")).status).toBe(307);
   });
 });

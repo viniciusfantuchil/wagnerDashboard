@@ -176,9 +176,21 @@ export function ControlScreen({ user }: { user: ControlUser }) {
             {user.name} · {user.office ? "Office" : user.crew}
           </p>
         </div>
-        <button type="button" onClick={load}>
-          Refresh
-        </button>
+        <div className="control-actions">
+          <button type="button" onClick={load}>
+            Refresh
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            onClick={async () => {
+              await fetch("/api/control/logout", { method: "POST" });
+              location.href = "/control/login";
+            }}
+          >
+            Sign out
+          </button>
+        </div>
       </header>
       {!writable && <p className="control-banner">Sample data: changes can&apos;t be saved until Google Calendar is connected.</p>}
       {error && <p className="control-banner error">{error}</p>}

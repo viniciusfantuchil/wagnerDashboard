@@ -1,19 +1,32 @@
 import { TZ } from "@/lib/time";
-import { CONTROL_COOKIE, parseControlUsers, userForCookie, type ControlUser } from "./users";
+import { CONTROL_COOKIE, parseControlUsers, userForSession, type ControlUser } from "./users";
 
-/** The control-screen user a request's cookie identifies, or null. Route handlers check this themselves. */
+/** The control-screen user a session cookie identifies, or null. Route handlers check this themselves. */
 export function controlUserFromCookie(cookie: string | undefined, env = process.env): ControlUser | null {
-  return userForCookie(parseControlUsers(env.CONTROL_USERS), cookie);
+  try {
+    return userForSession(parseControlUsers(env.CONTROL_USERS), cookie);
+  } catch {
+    return null;
+  }
 }
 
-export function controlUserFromRequest(request: Request, env = process.env): ControlUser | null {
-  const cookie = request.headers
+export function cookieFrom(request: Request, name: string): string | undefined {
+  return request.headers
     .get("cookie")
     ?.split(";")
     .map((c) => c.trim())
-    .find((c) => c.startsWith(`${CONTROL_COOKIE}=`))
-    ?.slice(CONTROL_COOKIE.length + 1);
-  return controlUserFromCookie(cookie, env);
+    .find((c) => c.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+}
+
+export function controlUserFromRequest(request: Request, env = process.env): ControlUser | null {
+  return controlUserFromCookie(cookieFrom(request, CONTROL_COOKIE), env);
+}
+
+/** POSTs must come from the board's own pages (cookies are SameSite=Lax too). */
+export function sameOrigin(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  return !origin || origin === new URL(request.url).origin;
 }
 
 const stamp = new Intl.DateTimeFormat("en-US", { timeZone: TZ, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });

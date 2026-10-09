@@ -152,7 +152,7 @@ CALENDAR_IDS=                     # JSON map: {"Crew 1 · Fernando": "...@group.
 MAP_STYLE=                        # optional: "schematic" to use the drawn map instead of OpenStreetMap
 KV_REST_API_URL= / KV_REST_API_TOKEN=
 BOARD_ACCESS_TOKEN=
-CONTROL_USERS=                    # JSON: personal links for /control, {"Diandra": {"key": "…", "office": true}, "Jorge": {"key": "…", "crew": "Crew 2"}}
+CONTROL_USERS=                    # JSON: /control logins, {"jorge": {"name": "Jorge", "password": "<hash from /control/password>", "crew": "Crew 2"}}
 HQ_LAT= / HQ_LON=
 ```
 

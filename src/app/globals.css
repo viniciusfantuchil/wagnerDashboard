@@ -233,3 +233,14 @@ footer .src.stale{color:var(--red);font-weight:600}
 .cjob-save.saved{color:var(--success)}
 .cjob-save.error{color:var(--red)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .seg button.on{color:var(--on-red)}}
+.control-actions{display:flex;gap:8px}
+.control-head button.ghost{background:transparent;color:var(--sand);border:1px solid var(--sand)}
+.control-form{max-width:420px;margin:24px auto 0;display:flex;flex-direction:column;gap:14px}
+.control-form h2{font-family:var(--display);font-size:22px;text-transform:uppercase;margin:0}
+.control-form label{display:flex;flex-direction:column;gap:6px;font:600 14px var(--display);text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted)}
+.control-form input{min-height:46px;padding:10px 12px;border:1px solid var(--border-strong);border-radius:6px;font:17px var(--body);background:var(--surface);color:var(--ink);text-transform:none;letter-spacing:0}
+.control-form button{min-height:48px;border:0;border-radius:6px;background:var(--navy);color:#fff;font:700 16px var(--display);text-transform:uppercase;letter-spacing:.05em}
+.control-form button:disabled{opacity:.5}
+.control-form .control-banner{margin:0}
+.control-hint{margin:0;color:var(--ink-muted);font-size:14px}
+.control-hash{width:100%;padding:10px;border:1px solid var(--border-strong);border-radius:6px;font:13px ui-monospace,Menlo,Consolas,monospace;word-break:break-all;background:var(--surface-sunken);color:var(--ink)}

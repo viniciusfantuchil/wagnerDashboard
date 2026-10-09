@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 /** Today's and the next workday's jobs the signed-in user may update. */
 export async function GET(request: Request) {
   const user = controlUserFromRequest(request);
-  if (!user) return Response.json({ error: "Sign in with your personal link" }, { status: 401 });
+  if (!user) return Response.json({ error: "Sign in first" }, { status: 401 });
   try {
     const now = new Date();
     const days = await controlDays(user, getSources(nyDate(now)).schedule, now);
