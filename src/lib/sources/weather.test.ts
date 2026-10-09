@@ -7,7 +7,7 @@ import daily from "./__fixtures__/nws-daily.json";
 import hourly from "./__fixtures__/nws-hourly.json";
 import points from "./__fixtures__/nws-points.json";
 import { SampleScheduleSource } from "./sample";
-import { lightningRisk, NwsWeatherSource, toWeather } from "./weather";
+import { lightningRisk, NwsWeatherSource, skyOf, toWeather } from "./weather";
 
 // Real NWS responses for Rockledge, fetched 2026-10-09 at 11:43 AM EDT.
 const DATE = "2026-10-09";
@@ -42,6 +42,11 @@ describe("toWeather (real NWS data)", () => {
 
   it("reads current temperature, wind, today's high and tonight's low", () => {
     expect([w.tempF, w.highF, w.lowF, w.wind]).toEqual([83, 86, 79, "SSE 10 mph"]);
+  });
+
+  it("keeps the current forecast text and an icon per hour", () => {
+    expect([w.summary, w.sky]).toEqual(["Mostly Sunny", "partly"]);
+    expect(w.hourly.map((h) => h.sky ?? null)).toEqual([null, null, null, null, "partly", "storm", "storm", "storm", "storm", "storm", "storm", "storm"]);
   });
 
   it("flags afternoon thunderstorms", () => {
@@ -142,5 +147,20 @@ describe("board without a forecast", () => {
     expect(board.weather).toBeNull();
     expect(board.jobs).toHaveLength(7);
     expect(board.alerts.map((a) => a.label)).not.toContain("Weather");
+  });
+});
+
+describe("skyOf", () => {
+  it.each([
+    ["Sunny", "sun"],
+    ["Mostly Clear", "partly"],
+    ["Partly Sunny", "partly"],
+    ["Mostly Cloudy", "cloud"],
+    ["Patchy Fog", "cloud"],
+    ["Chance Rain Showers", "rain"],
+    ["Slight Chance Showers And Thunderstorms", "storm"],
+    ["", undefined],
+  ])("%s → %s", (text, sky) => {
+    expect(skyOf(text)).toBe(sky);
   });
 });

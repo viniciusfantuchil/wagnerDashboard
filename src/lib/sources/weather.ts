@@ -3,7 +3,7 @@
 
 import { safeText } from "@/lib/google/auth";
 import { minuteOfDay, nyDate, nyIso } from "@/lib/time";
-import type { HourlyRain, Weather } from "@/lib/types";
+import type { HourlyRain, Sky, Weather } from "@/lib/types";
 import type { WeatherSource } from "./types";
 
 const API = "https://api.weather.gov";
@@ -38,6 +38,17 @@ export function lightningRisk(periods: NwsPeriod[]): string | undefined {
   return morning && afternoon ? "risk today" : morning ? "risk this morning" : "risk this afternoon";
 }
 
+/** NWS short forecast → icon: "Chance Showers And Thunderstorms" → storm, "Partly Sunny" → partly. */
+export function skyOf(text: string | undefined): Sky | undefined {
+  if (!text) return undefined;
+  if (/thunder/i.test(text)) return "storm";
+  if (/rain|shower|drizzle/i.test(text)) return "rain";
+  if (/partly|mostly sunny|mostly clear/i.test(text)) return "partly";
+  if (/cloud|overcast|fog/i.test(text)) return "cloud";
+  if (/sunny|clear/i.test(text)) return "sun";
+  return undefined;
+}
+
 /** Builds the board's Weather for `date` from NWS hourly and daily periods. */
 export function toWeather(date: string, location: string, hourly: NwsPeriod[], daily: NwsPeriod[], now: Date): Weather {
   const today = hourly.filter((p) => nyDate(new Date(p.startTime)) === date);
@@ -47,7 +58,9 @@ export function toWeather(date: string, location: string, hourly: NwsPeriod[], d
   const slots: HourlyRain[] = [];
   for (let h = FIRST_HOUR; h <= LAST_HOUR; h++) {
     // Hours already past are not in the forecast; they stay empty rather than guessed.
-    slots.push({ start: nyIso(date, `${String(h).padStart(2, "0")}:00`), pop: byHour.get(h)?.probabilityOfPrecipitation?.value ?? null });
+    const p = byHour.get(h);
+    const sky = skyOf(p?.shortForecast);
+    slots.push({ start: nyIso(date, `${String(h).padStart(2, "0")}:00`), pop: p?.probabilityOfPrecipitation?.value ?? null, ...(sky ? { sky } : {}) });
   }
 
   const current =
@@ -64,6 +77,8 @@ export function toWeather(date: string, location: string, hourly: NwsPeriod[], d
     lowF: nightLow ? toF(nightLow) : temps.length ? Math.min(...temps) : null,
     wind: current?.windSpeed ? `${current.windDirection ?? ""} ${current.windSpeed}`.trim() : "–",
     lightning: lightningRisk(work),
+    ...(current?.shortForecast ? { summary: current.shortForecast } : {}),
+    ...(skyOf(current?.shortForecast) ? { sky: skyOf(current?.shortForecast) } : {}),
     hourly: slots,
   };
 }

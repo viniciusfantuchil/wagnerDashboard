@@ -6,6 +6,7 @@ import { clock12, clockParts, hourRange, hourShort, minuteOfDay, monthDay, TZ, w
 import { crewColor, crewLead, crewRank, crewShort, isSealing } from "@/lib/crews";
 import type { Board, Check } from "@/lib/types";
 import { BoardMap, TileBoardMap } from "./BoardMap";
+import { WeatherIcon } from "./WeatherIcon";
 import { STATUS_LABEL, statusKey } from "./status";
 
 const REFRESH_MS = 5 * 60_000;
@@ -17,6 +18,8 @@ const BASE_FS = 18;
 const MIN_FS = 13;
 const RELOAD_MINUTE = 4 * 60; // 4:00 AM
 const STAGE_H = 1080;
+/** Rain bars are drawn on a 0–60% scale, so typical Florida afternoon chances are easy to compare. */
+const RAIN_SCALE = 60;
 const WEATHER_PLACE = "Rockledge";
 const MIN_STAGE_W = 1920; // the prototype width; taller windows grow the stage in height instead
 const MAX_STAGE_W = 2560; // wider windows letterbox left and right
@@ -44,9 +47,9 @@ function CrewDot({ crew }: { crew: string }) {
 }
 
 function DepositChip({ v }: { v: Check }) {
-  if (v === "ok") return <span className="chip c-ok">Deposit ok</span>;
+  if (v === "ok") return <span className="chip c-ok">Deposit ✓</span>;
   if (v === "missing") return <span className="chip c-none">No deposit</span>;
-  return <span className="chip c-unknown">Deposit unknown</span>;
+  return <span className="chip c-unknown">Deposit ?</span>;
 }
 
 export function BoardScreen({ initial }: { initial: Board }) {
@@ -310,7 +313,7 @@ export function BoardScreen({ initial }: { initial: Board }) {
                           </b>
                           <small>
                             <span className={`st-${k}`}>{STATUS_LABEL[j.status]}</span>
-                            {j.deposit !== "ok" ? <span className="st-issue"> · {j.deposit === "missing" ? "No deposit" : "Deposit unknown"}</span> : null}
+                            {j.deposit !== "ok" ? <span className="st-issue"> · {j.deposit === "missing" ? "No deposit" : "Deposit ?"}</span> : null}
                             {` · ${j.city}`}
                             {j.note ? <em> · {j.note}</em> : null}
                           </small>
@@ -341,46 +344,69 @@ export function BoardScreen({ initial }: { initial: Board }) {
           </section>
 
           <div className="col">
-            <section className="panel" aria-labelledby="h-wx" style={{ flex: "none" }}>
+            <section className="panel wx" aria-labelledby="h-wx" style={{ flex: "none" }}>
               <div className="panel-head">
-                <h2 id="h-wx">Rain by Hour</h2>
+                <h2 id="h-wx">Weather</h2>
                 <span className="eyebrow">
                   {weather?.location ?? WEATHER_PLACE}
-                  {hours.length > 0 ? ` · ${hourRange(hours[0], hours[hours.length - 1])}` : ""}
+                  {hours.length > 0 ? ` · rain ${hourRange(hours[0], hours[hours.length - 1])}` : ""}
                 </span>
               </div>
               {weather ? (
                 <>
-                  <div className="rain">
-                    {hourly.map((h) => (
-                      <div key={h.start} title={h.pop === null ? "past" : `${h.pop}%`}>
-                        {h.pop !== null && (
-                          <i
-                            className={h.pop >= RAIN_ALERT_PCT ? "hi" : ""}
-                            style={{ height: `${Math.min(100, Math.max(6, (h.pop / 60) * 100))}%` }}
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="rain-h">
-                    {hourly.map((h, i) => (
-                      <span key={h.start}>
-                        {hourShort(hours[i])}
-                        <br />
-                        {h.pop === null ? "–" : `${h.pop}%`}
+                  <div className="wx-now">
+                    <WeatherIcon sky={weather.sky} size={58} />
+                    <div className="wx-temp">
+                      <b>{deg(weather.tempF)}</b>
+                      <span>{weather.summary ?? (dayRain ? "Rain likely" : "No rain alert")}</span>
+                    </div>
+                    <div className="wx-facts">
+                      <span>
+                        High <b>{deg(weather.highF)}</b> · Low <b>{deg(weather.lowF)}</b>
                       </span>
-                    ))}
+                      <span>
+                        Wind <b>{weather.wind}</b>
+                      </span>
+                      {weather.lightning ? (
+                        <span className="wx-bolt">⚡ Lightning {weather.lightning}</span>
+                      ) : (
+                        <span>No lightning expected</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="wx-line">
+                  <div
+                    className="rain2"
+                    aria-label="Chance of rain by hour"
+                    style={{ "--alert-at": `${(RAIN_ALERT_PCT / RAIN_SCALE) * 100}%` } as React.CSSProperties}
+                  >
+                    {hourly.map((h, i) => {
+                      const past = h.pop === null;
+                      const isNow = now !== null && Math.floor(minuteOfDay(now.toISOString()) / 60) === hours[i];
+                      return (
+                        <div key={h.start} className={`hr${past ? " past" : ""}${isNow ? " now" : ""}`}>
+                          <WeatherIcon sky={past ? undefined : h.sky} size={20} />
+                          <div className="bar">
+                            {!past && (
+                              <>
+                                <span className={`pct${h.pop! >= RAIN_ALERT_PCT ? " hi" : ""}`}>{h.pop}%</span>
+                                <i
+                                  className={h.pop! >= RAIN_ALERT_PCT ? "hi" : ""}
+                                  style={{ height: `${Math.min(100, Math.max(4, (h.pop! / RAIN_SCALE) * 100))}%` }}
+                                />
+                              </>
+                            )}
+                          </div>
+                          <span className="t">{isNow ? "Now" : hourShort(hours[i])}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="wx-key">
                     <span>
-                      High <b>{deg(weather.highF)}</b> · low <b>{deg(weather.lowF)}</b>
+                      <i className="hi" /> {RAIN_ALERT_PCT}%+ rain: sealing and excavation alert
                     </span>
                     <span>
-                      Lightning: <b>{weather.lightning ?? "none expected"}</b>
-                    </span>
-                    <span>
-                      Wind <b>{weather.wind}</b>
+                      <i className="past" /> Past hours
                     </span>
                   </div>
                 </>
