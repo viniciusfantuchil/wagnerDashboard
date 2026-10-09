@@ -19,13 +19,19 @@ export interface CalendarEvent {
 
 export type ParsedEvent = { kind: "job"; job: Job } | { kind: "visit"; visit: Visit } | { kind: "skip"; reason: string };
 
-/** Google Calendar event colors (colorId) → job status. No color = scheduled. */
-export const COLOR_STATUS: Record<string, Status> = {
-  "9": "scheduled", // Blueberry
-  "5": "in_progress", // Banana
-  "7": "completed", // Peacock
-  "11": "issue", // Tomato
-  "8": "postponed", // Graphite
+/**
+ * `Status:` description values → job status. No line = scheduled. Event colors are not read: the office uses
+ * them to tell the crews apart, so a red Excavation event must not read as "issue".
+ */
+export const STATUS_VALUES: Record<string, Status> = {
+  SCHEDULED: "scheduled",
+  INPROGRESS: "in_progress",
+  STARTED: "in_progress",
+  ISSUE: "issue",
+  STOPPED: "issue",
+  DONE: "completed",
+  COMPLETED: "completed",
+  POSTPONED: "postponed",
 };
 
 /** All-day events have no time; they are placed in the normal workday (for weather) and shown as "All day". */
@@ -46,7 +52,6 @@ export const WARN = {
   city: "City not found in address",
   title: "Title not in 'Customer – Service size' format",
   payment: "Payment text in title",
-  color: "Unknown event color",
 } as const;
 
 // " – ", " - " or " — " between title parts.
@@ -234,10 +239,11 @@ export function parseEvent(event: CalendarEvent, crew: string, onDate?: string):
   const note = fields.get("note") ? scrubMoney(fields.get("note")!) || undefined : undefined;
 
   let status: Status = "scheduled";
-  if (event.colorId) {
-    const s = COLOR_STATUS[event.colorId];
+  const statusRaw = fields.get("status");
+  if (statusRaw) {
+    const s = STATUS_VALUES[statusRaw.toUpperCase().replace(/[\s_-]+/g, "")];
     if (s) status = s;
-    else warnings.push(WARN.color);
+    else warnings.push(`Unrecognized Status value "${scrubMoney(statusRaw)}"`);
   }
 
   // Most important first: the Calendar alert shows them in this order.

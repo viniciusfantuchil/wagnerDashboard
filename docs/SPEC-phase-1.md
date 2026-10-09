@@ -97,11 +97,12 @@ The board can only be as good as the calendar. Proposed convention for Diandra a
 | Estimate visits | Title starts with `EST –` (they live on the Excavation calendar) | `EST – Sorensen – Driveway` |
 | Location | Full street address | `1234 Example Dr, Viera, FL 32940` |
 | Description | One `Key: Value` per line | see below |
-| Event color | Job status | see below |
+| Event color | Not read (the office uses colors to tell the crews apart) | |
 
 Description keys (case-insensitive; missing key = `unknown`):
 
 ```
+Status: SCHEDULED | IN PROGRESS | ISSUE | DONE | POSTPONED
 Deposit: OK | PENDING
 Permit: OK | PENDING | N/A
 Material: OK | PENDING
@@ -110,16 +111,15 @@ Day: 2/2
 Note: free text shown on the board
 ```
 
-Status by event color (Google Calendar color names):
+Status comes from the `Status:` line (missing line = Scheduled). It was first proposed as the event color, but the calendars already use colors to identify the crews (Crew 1 orange, Excavation red, …), so a red Excavation event would have read as "Issue". Decided 2026-10-09.
 
-| Color | Status |
+| `Status:` | Board status |
 |---|---|
-| Blueberry | Scheduled |
-| Banana | In progress |
-| Peacock | Completed |
-| Tomato | Issue |
-| Graphite | Postponed |
-| default (no color) | Scheduled |
+| `SCHEDULED` (or no line) | Scheduled |
+| `IN PROGRESS` / `STARTED` | In progress |
+| `ISSUE` / `STOPPED` | Issue |
+| `DONE` / `COMPLETED` | Completed |
+| `POSTPONED` | Postponed |
 
 Today the payment status is written as free text in event titles. The parser must tolerate old-style titles: show the event, set unknown fields to `unknown` and add a `parseWarnings` entry. Never guess a deposit as OK.
 
@@ -159,7 +159,7 @@ HQ_LAT= / HQ_LON=
 
 - [ ] The board reads all 7 calendars and shows today's jobs and estimate visits correctly for 5 consecutive workdays, checked against the calendars by Diandra.
 - [ ] Every job with an address appears on the map within 1 km of the real location.
-- [ ] Status colors change on the board within 5 minutes of changing the event color.
+- [ ] Status changes on the board within 5 minutes of changing the event's `Status:` line.
 - [ ] Every alert rule in section 7 has a unit test with a sample event.
 - [ ] The parser has unit tests for new-style and old-style titles.
 - [ ] Nothing scrolls at 1920×1080 with 10 jobs, 6 visits and 6 alerts.

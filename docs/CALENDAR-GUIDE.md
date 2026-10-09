@@ -32,6 +32,7 @@ The TV shows only the city. The address is used to place the job on the map.
 One line per item, exactly like this (upper or lower case both work):
 
 ```
+Status: In progress
 Deposit: OK
 Permit: OK
 Material: OK
@@ -42,6 +43,7 @@ Note: Gate code at the side door
 
 | Line | Allowed values | Meaning on the board |
 |---|---|---|
+| `Status:` | `Scheduled`, `In progress`, `Issue`, `Done` or `Postponed` | The status chip and pin color. Missing line = Scheduled. `Issue` = red **Stopped** alert, with the `Note:` as the reason. |
 | `Deposit:` | `OK` or `PENDING` | `PENDING` = red **Deposit** alert (D-003). Missing line = "Deposit unknown". |
 | `Permit:` | `OK`, `PENDING` or `N/A` | `PENDING` on the next workday = **Permit** alert. |
 | `Material:` | `OK` or `PENDING` | `PENDING` on the next workday = **Material** alert. |
@@ -51,17 +53,11 @@ Note: Gate code at the side door
 
 Only `OK` counts as paid. "Paid", "yes" or "received" are not read as OK, so the board will ask for the event to be fixed.
 
-## 4. Event color = job status
+## 4. Colors
 
-| Color | Status on the board |
-|---|---|
-| Blueberry (or no color) | Scheduled |
-| Banana | In progress |
-| Peacock | Completed |
-| Tomato | Issue (stopped; write the reason in `Note:`) |
-| Graphite | Postponed |
+Keep using colors to tell the crews apart, as today. The board does not read event colors.
 
-Changing the color is how the crew status changes on the TV. The board picks it up within 5 minutes.
+To change a job's status on the TV, edit the `Status:` line. The board picks it up within 5 minutes.
 
 ## 5. Times
 
@@ -73,6 +69,7 @@ A start and end time are best. All-day events also work; the board shows them as
 Title:       <Customer> – <Service> <size>
 Location:    <street>, <city>, FL <zip>
 Description:
+Status: Scheduled
 Deposit: PENDING
 Permit: PENDING
 Material: PENDING

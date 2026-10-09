@@ -117,7 +117,7 @@ describe("CALENDAR_IDS", () => {
 describe("GoogleCalendarSource", () => {
   it("reads every calendar for the New York day and parses the events", async () => {
     const google = fakeGoogle({
-      "crew2@group.calendar.google.com": [[ev("a", "Hartley – Driveway 420 sf", { colorId: "5" })]],
+      "crew2@group.calendar.google.com": [[ev("a", "Hartley – Driveway 420 sf", { description: "Deposit: OK\nStatus: In progress" })]],
       "exc@group.calendar.google.com": [
         [ev("b", "Marsh – Driveway excavation 500 sf"), ev("c", "EST – Sorensen – Driveway", { start: { dateTime: "2026-10-09T09:00:00-04:00" } })],
       ],
