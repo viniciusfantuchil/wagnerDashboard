@@ -133,13 +133,6 @@ main{display:grid;gap:14px;grid-template-columns:540px minmax(0,1fr) 480px;min-h
 .v small{display:block;color:var(--ink-muted);font-size:1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* Weather */
-.rain{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px;align-items:end;height:54px}
-.rain div{display:flex;align-items:flex-end;height:100%}
-.rain i{display:block;width:100%;background:var(--navy);border-radius:2px 2px 0 0;opacity:.8}
-.rain i.hi{background:var(--warning);opacity:1}
-.rain-h{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px;font-size:.66em;color:var(--ink-muted);text-align:center;line-height:1.15}
-.wx-line{display:flex;justify-content:space-between;gap:10px;font-size:.84em;color:var(--ink-muted)}
-.wx-line b{color:var(--ink)}
 
 /* Alerts */
 .alerts{display:flex;flex-direction:column;gap:7px;min-height:0;flex:1}
@@ -365,3 +358,33 @@ footer .src.stale{color:var(--red);font-weight:600}
   .control-actions{width:100%}
   .control-actions>*{flex:1 1 0;justify-content:center;text-align:center;padding:9px 4px;font-size:13px;white-space:nowrap}
 }
+
+/* Weather card: current conditions, hourly rain with icons, the alert threshold and the current hour */
+.wx-now{display:grid;grid-template-columns:auto auto minmax(0,1fr);align-items:center;gap:12px;flex:none}
+.wx-temp b{display:block;font-family:var(--display);font-size:2.3em;line-height:1}
+.wx-temp span{display:block;font-size:.8em;color:var(--ink-muted);max-width:11em;line-height:1.2}
+.wx-facts{display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:.8em;color:var(--ink-muted);text-align:right}
+.wx-facts b{color:var(--ink)}
+.wx-bolt{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--red-tint);color:var(--red);font-weight:700}
+.wx-icon{display:inline-block;flex:none;overflow:visible}
+.wx-icon .sun circle{fill:var(--warning)}
+.wx-icon .sun line{stroke:var(--warning);stroke-width:1.8;stroke-linecap:round}
+.wx-icon .cloud{fill:var(--surface-sunken);stroke:var(--ink-muted);stroke-width:1.2}
+.wx-icon .drops line{stroke:var(--navy);stroke-width:1.8;stroke-linecap:round}
+.wx-icon .bolt{fill:var(--red)}
+.rain2{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px;flex:none}
+.rain2 .hr{display:flex;flex-direction:column;align-items:center;gap:3px;padding:3px 0 2px;border-radius:6px}
+.rain2 .hr.now{background:var(--navy-tint);box-shadow:inset 0 0 0 1.5px var(--navy)}
+.rain2 .bar{position:relative;width:100%;height:64px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+.rain2 .bar::after{content:"";position:absolute;left:-2px;right:-2px;bottom:var(--alert-at);border-top:1px dashed var(--warning);opacity:.7}
+.rain2 .bar i{display:block;width:72%;background:var(--navy);border-radius:3px 3px 0 0;opacity:.85}
+.rain2 .bar i.hi{background:var(--warning);opacity:1}
+.rain2 .pct{font-family:var(--display);font-weight:700;font-size:.66em;color:var(--ink-muted);margin-bottom:2px}
+.rain2 .pct.hi{color:var(--warning)}
+.rain2 .hr.past .bar{background:repeating-linear-gradient(135deg,var(--surface-sunken) 0 4px,transparent 4px 8px);border-radius:3px;opacity:.7}
+.rain2 .t{font-size:.66em;color:var(--ink-muted);font-weight:600}
+.rain2 .hr.now .t{color:var(--navy);font-weight:700}
+.wx-key{display:flex;gap:16px;font-size:.68em;color:var(--ink-muted);flex:none}
+.wx-key i{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:-1px;margin-right:3px}
+.wx-key i.hi{background:var(--warning)}
+.wx-key i.past{background:repeating-linear-gradient(135deg,var(--ink-muted) 0 2px,transparent 2px 4px)}

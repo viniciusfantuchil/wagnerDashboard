@@ -117,7 +117,13 @@ export class SampleWeatherSource implements WeatherSource {
       lowF: 75,
       wind: "NE 12 mph",
       lightning: "risk this afternoon",
-      hourly: RAIN.map((pop, i) => ({ start: nyIso(date, `${String(7 + i).padStart(2, "0")}:00`), pop })),
+      summary: "Partly Sunny",
+      sky: "partly",
+      hourly: RAIN.map((pop, i) => ({
+        start: nyIso(date, `${String(7 + i).padStart(2, "0")}:00`),
+        pop,
+        sky: pop >= 50 ? "storm" : pop >= 40 ? "rain" : pop >= 25 ? "partly" : "sun",
+      })),
     };
   }
 }

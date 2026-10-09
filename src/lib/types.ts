@@ -49,9 +49,13 @@ export interface Visit {
   service: string;
 }
 
+/** Sky picture for an icon, from the forecast text. */
+export type Sky = "sun" | "partly" | "cloud" | "rain" | "storm";
+
 export interface HourlyRain {
   start: string; // start of the hour, ISO
   pop: number | null; // probability of precipitation, 0–100; null for hours with no forecast (already past)
+  sky?: Sky;
 }
 
 export interface Weather {
@@ -61,6 +65,8 @@ export interface Weather {
   lowF: number | null;
   wind: string; // "NE 12 mph"
   lightning?: string; // "risk this afternoon"
+  summary?: string; // "Chance Showers And Thunderstorms", the current hour's forecast
+  sky?: Sky; // the current hour's sky
   hourly: HourlyRain[];
 }
 
