@@ -70,6 +70,7 @@ function JobCard({
   writable,
   onSaved,
   showDate,
+  wide,
 }: {
   job: ControlJob;
   date: string;
@@ -77,6 +78,7 @@ function JobCard({
   writable: boolean;
   onSaved: Saved;
   showDate?: boolean;
+  wide: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [stopping, setStopping] = useState(false);
@@ -104,6 +106,18 @@ function JobCard({
     }
   };
 
+  const close = () => {
+    setOpen(false);
+    setStopping(false);
+  };
+  // Esc closes the editor or the Issue panel.
+  useEffect(() => {
+    if (!open && !stopping) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, stopping]);
+
   const pickCheck = (field: Field, value: string) => {
     if (field === "Deposit" && value === "OK" && !window.confirm("Mark the 50% deposit as received? Only when payment is confirmed (D-003).")) return;
     if (field === "Deposit" && value === "FINAL" && !window.confirm("Mark the final payment as received? Only when payment is confirmed.")) return;
@@ -111,7 +125,7 @@ function JobCard({
   };
 
   return (
-    <article className={`cjob${open ? " open" : ""}${open || stopping ? " raised" : ""}`} style={{ borderLeftColor: job.color ?? "var(--border)" }}>
+    <article className={`cjob${open ? " open" : ""}`} style={{ borderLeftColor: job.color ?? "var(--border)" }}>
       <button type="button" className="cjob-sum" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <span className="cjob-top">
           <span className="cjob-crew">
@@ -167,64 +181,151 @@ function JobCard({
         </div>
       )}
 
-      {stopping && (
-        <div className="cjob-stop">
-          <p>Why is the job stopped?</p>
-          <div className="cjob-reasons">
-            {STOP_REASONS.map((r) => (
-              <button key={r} type="button" className={reason === r ? "on" : ""} disabled={busy} onClick={() => setReason(r)}>
-                {r}
+      {(open || stopping) &&
+        (wide ? (
+          // On a computer: a centered dialog over the page, so an open card never covers or stretches its neighbors.
+          <div className="cjob-layer" onMouseDown={(e) => e.target === e.currentTarget && close()}>
+            <div className="cjob-dialog" role="dialog" aria-modal="true" aria-label={`${job.customer}, ${job.city}`}>
+            <div className="cjob-dialog-head">
+              <div>
+                <b>
+                  {job.customer} <small>· {job.city}</small>
+                </b>
+                <span>
+                  <i style={{ background: job.color ?? "var(--ink-muted)" }} />
+                  {job.crew} · {job.service}
+                  {job.size ? ` ${job.size}` : ""} · {showDate ? `${weekdayShort(date)} ${monthDay(date)} · ` : ""}
+                  {job.allDay ? "All day" : clock12(job.start)}
+                </span>
+              </div>
+              <button type="button" className="cjob-close" onClick={close} aria-label="Close">
+                ✕
               </button>
-            ))}
-          </div>
-          <input value={reason} maxLength={200} placeholder="Or type the reason" onChange={(e) => setReason(e.target.value)} disabled={busy} />
-          <div className="cjob-quick">
-            <button type="button" className="q-stop on" disabled={busy || !reason.trim()} onClick={() => send({ Status: "Issue", Note: reason })}>
-              {saving ? "Saving…" : "Mark stopped"}
-            </button>
-            <button type="button" className="q-cancel" disabled={saving} onClick={() => setStopping(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {open && (
-        <div className="cjob-edit">
-          <Segmented kind="status" options={FIELDS.Status} value={job.values.Status} disabled={busy} onPick={(v) => send({ Status: v })} />
-
-          {user.office && (
-            <div className="cjob-checks">
-              {CHECKS.map(({ field, label }) => (
-                <div key={field} className="cjob-check">
-                  <span>{label}</span>
-                  <Segmented options={FIELDS[field]} value={job.values[field]} disabled={busy} onPick={(v) => pickCheck(field, v)} />
-                </div>
-              ))}
+            </div>
+          {stopping && (
+            <div className="cjob-stop">
+              <p>Why is the job stopped?</p>
+              <div className="cjob-reasons">
+                {STOP_REASONS.map((r) => (
+                  <button key={r} type="button" className={reason === r ? "on" : ""} disabled={busy} onClick={() => setReason(r)}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+              <input value={reason} maxLength={200} placeholder="Or type the reason" onChange={(e) => setReason(e.target.value)} disabled={busy} />
+              <div className="cjob-quick">
+                <button type="button" className="q-stop on" disabled={busy || !reason.trim()} onClick={() => send({ Status: "Issue", Note: reason })}>
+                  {saving ? "Saving…" : "Mark stopped"}
+                </button>
+                <button type="button" className="q-cancel" disabled={saving} onClick={() => setStopping(false)}>
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
 
-          <div className="cjob-note">
-            <textarea
-              value={note}
-              maxLength={200}
-              rows={2}
-              placeholder={job.values.Status === "Issue" ? "Why is the job stopped?" : "Note for the board"}
-              disabled={!writable}
-              onChange={(e) => setNote(e.target.value)}
-            />
-            <button type="button" disabled={busy || note.trim() === (job.values.Note ?? "")} onClick={() => send({ Note: note })}>
-              Save note
-            </button>
+          {open && (
+            <div className="cjob-edit">
+              <Segmented kind="status" options={FIELDS.Status} value={job.values.Status} disabled={busy} onPick={(v) => send({ Status: v })} />
+
+              {user.office && (
+                <div className="cjob-checks">
+                  {CHECKS.map(({ field, label }) => (
+                    <div key={field} className="cjob-check">
+                      <span>{label}</span>
+                      <Segmented options={FIELDS[field]} value={job.values[field]} disabled={busy} onPick={(v) => pickCheck(field, v)} />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="cjob-note">
+                <textarea
+                  value={note}
+                  maxLength={200}
+                  rows={2}
+                  placeholder={job.values.Status === "Issue" ? "Why is the job stopped?" : "Note for the board"}
+                  disabled={!writable}
+                  onChange={(e) => setNote(e.target.value)}
+                />
+                <button type="button" disabled={busy || note.trim() === (job.values.Note ?? "")} onClick={() => send({ Note: note })}>
+                  Save note
+                </button>
+              </div>
+
+              {job.warnings.length > 0 && <p className="cjob-warn">Calendar: {job.warnings.join("; ")}</p>}
+              {job.updated && <p className="cjob-updated">Last change: {job.updated}</p>}
+              {saving && <p className="cjob-save">Saving…</p>}
+            </div>
+          )}
+
+              {error && <p className="cjob-save error">{error}</p>}
+            </div>
           </div>
+        ) : (
+          // On a phone: inside the card.
+          <>
+          {stopping && (
+            <div className="cjob-stop">
+              <p>Why is the job stopped?</p>
+              <div className="cjob-reasons">
+                {STOP_REASONS.map((r) => (
+                  <button key={r} type="button" className={reason === r ? "on" : ""} disabled={busy} onClick={() => setReason(r)}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+              <input value={reason} maxLength={200} placeholder="Or type the reason" onChange={(e) => setReason(e.target.value)} disabled={busy} />
+              <div className="cjob-quick">
+                <button type="button" className="q-stop on" disabled={busy || !reason.trim()} onClick={() => send({ Status: "Issue", Note: reason })}>
+                  {saving ? "Saving…" : "Mark stopped"}
+                </button>
+                <button type="button" className="q-cancel" disabled={saving} onClick={() => setStopping(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
-          {job.warnings.length > 0 && <p className="cjob-warn">Calendar: {job.warnings.join("; ")}</p>}
-          {job.updated && <p className="cjob-updated">Last change: {job.updated}</p>}
-          {saving && <p className="cjob-save">Saving…</p>}
-        </div>
-      )}
+          {open && (
+            <div className="cjob-edit">
+              <Segmented kind="status" options={FIELDS.Status} value={job.values.Status} disabled={busy} onPick={(v) => send({ Status: v })} />
 
-      {error && <p className="cjob-save error">{error}</p>}
+              {user.office && (
+                <div className="cjob-checks">
+                  {CHECKS.map(({ field, label }) => (
+                    <div key={field} className="cjob-check">
+                      <span>{label}</span>
+                      <Segmented options={FIELDS[field]} value={job.values[field]} disabled={busy} onPick={(v) => pickCheck(field, v)} />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="cjob-note">
+                <textarea
+                  value={note}
+                  maxLength={200}
+                  rows={2}
+                  placeholder={job.values.Status === "Issue" ? "Why is the job stopped?" : "Note for the board"}
+                  disabled={!writable}
+                  onChange={(e) => setNote(e.target.value)}
+                />
+                <button type="button" disabled={busy || note.trim() === (job.values.Note ?? "")} onClick={() => send({ Note: note })}>
+                  Save note
+                </button>
+              </div>
+
+              {job.warnings.length > 0 && <p className="cjob-warn">Calendar: {job.warnings.join("; ")}</p>}
+              {job.updated && <p className="cjob-updated">Last change: {job.updated}</p>}
+              {saving && <p className="cjob-save">Saving…</p>}
+            </div>
+          )}
+
+          </>
+        ))}
+
+      {error && !open && !stopping && <p className="cjob-save error">{error}</p>}
     </article>
   );
 }
@@ -244,7 +345,21 @@ function dayCounts(jobs: ControlJob[]) {
   return `${jobs.length} job${jobs.length === 1 ? "" : "s"}${issues ? ` · ${issues} stopped` : ""}`;
 }
 
+/** True on a computer-sized window (the CSS breakpoint for the side-by-side layout). */
+function useWide(): boolean {
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const m = window.matchMedia("(min-width: 900px)");
+    const update = () => setWide(m.matches);
+    update();
+    m.addEventListener("change", update);
+    return () => m.removeEventListener("change", update);
+  }, []);
+  return wide;
+}
+
 export function ControlScreen({ user }: { user: ControlUser }) {
+  const wide = useWide();
   const [days, setDays] = useState<ControlDay[] | null>(null);
   const [writable, setWritable] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -371,6 +486,7 @@ export function ControlScreen({ user }: { user: ControlUser }) {
       user={user}
       writable={writable}
       showDate={showDate}
+      wide={wide}
       onSaved={(job, before, changes) => saved(date, job, before, changes)}
     />
   );
