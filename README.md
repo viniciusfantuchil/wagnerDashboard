@@ -86,7 +86,12 @@ Job and visit addresses are placed on the map on the server, with the free **US 
 
 **Setup**
 
-1. **User database:** in Vercel, open the project, then **Storage → Create Database → Upstash for Redis** (free plan) and connect it to the project. Vercel adds `KV_REST_API_URL` and `KV_REST_API_TOKEN` itself. Only the server uses them.
+1. **Users sheet (free):** the users live in a private Google Sheet of the Wagner account, read and written by the same service account as the calendars. No paid database.
+   - In the Google Cloud project of the service account, open **APIs & Services → Library**, search **Google Sheets API** and click **Enable**.
+   - In the Wagner Google account, create a blank Google Sheet named `Board users`. Leave it empty; the board writes the header row.
+   - **Share** it with the service account's email (the same one the calendars are shared with) as **Editor**. Share it with no one else who should not manage logins.
+   - Copy the sheet ID from its address (`https://docs.google.com/spreadsheets/d/<sheet ID>/edit`) and add it in Vercel as `USERS_SHEET_ID`.
+   - Each row is one user: username, name, role, crew, password **hash** (never the password), and who created or changed it. Manage users on `/control/users`, not in the sheet. Deleting a row in the sheet removes that login.
 2. **Calendar access:** in each crew calendar's **Settings and sharing**, change the board's service account from "See all event details" to **"Make changes to events"**. The board asks Google only for the `calendar.events` scope, for this screen.
 3. Redeploy.
 4. **First admin:** on a computer that already shows the TV board, open `https://<board url>/control/setup` and create your admin username and password.

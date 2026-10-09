@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Open this page on a device that already shows the TV board." }, { status: 403, headers: NO_STORE });
   }
   const store = getUserStore();
-  if (!store) return Response.json({ error: "Connect Upstash Redis in Vercel first." }, { status: 503, headers: NO_STORE });
+  if (!store) return Response.json({ error: "Set USERS_SHEET_ID in Vercel first." }, { status: 503, headers: NO_STORE });
   if (!(await needsSetup(store, envUsers()))) return Response.json({ error: "Setup is already done. Sign in instead." }, { status: 409, headers: NO_STORE });
   try {
     const body = (await request.json()) as Record<string, unknown>;

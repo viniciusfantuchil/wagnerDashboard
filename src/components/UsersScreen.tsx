@@ -98,7 +98,7 @@ export function UsersScreen({ me }: { me: ControlUser }) {
         </div>
       </header>
 
-      {!connected && <p className="control-banner">Connect Upstash Redis in Vercel (Storage) to add users here.</p>}
+      {!connected && <p className="control-banner">Set USERS_SHEET_ID in Vercel (see the README) to add users here.</p>}
       {msg && <p className={`control-banner${msg.ok ? " ok" : " error"}`}>{msg.text}</p>}
 
       <form className="control-form users-add" onSubmit={add} autoComplete="off">

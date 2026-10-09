@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   const by = await admin(request);
   if (!by) return Response.json({ error: "Admins only" }, { status: 403, headers: NO_STORE });
   const store = getUserStore();
-  if (!store) return Response.json({ error: "Connect Upstash Redis in Vercel to add users." }, { status: 503, headers: NO_STORE });
+  if (!store) return Response.json({ error: "Set USERS_SHEET_ID in Vercel to add users." }, { status: 503, headers: NO_STORE });
   try {
     const user = await createUser(store, envUsers(), await request.json(), by);
     console.info(`Control users: ${by.name} added ${user.username} (${user.role})`);

@@ -11,7 +11,7 @@ async function guard(request: Request) {
   const by = await controlUserFromRequest(request);
   if (!by?.admin) return { error: Response.json({ error: "Admins only" }, { status: 403, headers: NO_STORE }) };
   const store = getUserStore();
-  if (!store) return { error: Response.json({ error: "Connect Upstash Redis in Vercel to manage users." }, { status: 503, headers: NO_STORE }) };
+  if (!store) return { error: Response.json({ error: "Set USERS_SHEET_ID in Vercel to manage users." }, { status: 503, headers: NO_STORE }) };
   return { by, store };
 }
 
