@@ -172,3 +172,17 @@ footer .src.stale{color:var(--red);font-weight:600}
 .board-error p{color:var(--ink-muted);font-size:22px;margin:0}
 .pin.approx circle,.visit.approx rect{stroke-dasharray:4 3}
 .legend .approx{display:inline-block;width:.9em;height:.9em;border-radius:50%;border:2px dashed var(--ink-muted);vertical-align:-.1em;margin-right:5px}
+
+/* Google Maps basemap: same pins, sized for the 404×600 map units */
+.map-wrap:has(.gmap){background:#e9e5dc}
+.gmap .pin circle{stroke-width:2;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.45))}
+.gmap .pin text{font-size:10px}
+.gmap .visit rect{stroke-width:1.8;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.35))}
+.gmap .visit text{font-size:7px}
+.gmap .hq rect{stroke-width:1.3}
+.gmap .hq text{font-size:7px}
+.gmap .pin.approx circle,.gmap .visit.approx rect{stroke-dasharray:3 2}
+@media (prefers-reduced-motion:no-preference){
+  .gmap .pin.s-progress circle{animation:gpulse 2.4s ease-in-out infinite}
+  @keyframes gpulse{50%{stroke-width:4.5}}
+}

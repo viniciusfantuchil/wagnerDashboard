@@ -174,6 +174,6 @@ A mini PC or Raspberry Pi 5 running Chromium in kiosk mode, starting on boot, po
 ## 12. Open items
 
 - Approve the calendar convention (section 6) with Diandra and Carlos.
-- Decide the map provider (Mapbox or Google) and create the account in the company's name.
+- ~~Decide the map provider~~ Google Maps (Static API basemap, decided 2026-10-09). Create the key in the company's Google Cloud project.
 - Request Markate API access (api@markate.com) for Phase 2.
 - Confirm whether crews work Saturdays (affects "next workday").

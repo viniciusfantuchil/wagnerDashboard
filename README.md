@@ -30,6 +30,7 @@ npm run build
 | `src/lib/sources/` | `ScheduleSource` / `WeatherSource` interfaces and the sample implementation |
 | `src/lib/sources/calendar.ts` | `GoogleCalendarSource`: reads each crew calendar with the service account |
 | `src/lib/sources/weather.ts` | `NwsWeatherSource`: hourly forecast from api.weather.gov (no key needed) |
+| `src/lib/geo/staticMap.ts`, `src/app/api/map/route.ts` | Google Maps basemap: framing, projection, server-side image route |
 | `src/lib/geo/geocode.ts` | Address → map position (US Census geocoder for now; city center as fallback) |
 | `src/lib/google/auth.ts` | Service account access tokens (no Google SDK) |
 | `src/proxy.ts`, `src/lib/access.ts` | Access control: every page and API route needs `BOARD_ACCESS_TOKEN` |
@@ -37,6 +38,18 @@ npm run build
 | `src/lib/rules/alerts.ts` | Alert rules (spec §7) |
 | `src/lib/rules/readiness.ts` | Next workday and ready-check rows |
 | `src/components/` | Screen components; styles in `src/app/globals.css` are copied from the prototype |
+
+## Map
+
+With `GOOGLE_MAPS_API_KEY` set, the map panel shows a **Google Maps** basemap (Maps Static API), framed to fit today's jobs, visits and the office. The board's own numbered, status-colored pins are drawn on top. The server fetches the image (`GET /api/map`, behind the access token), so the key never reaches the browser. Images are cached in memory and in the browser for a day, so a TV uses only a few map loads a day. Without the key, the board draws the schematic map from the prototype.
+
+Setup, in the same Google Cloud project as the calendar service account:
+
+1. **APIs & Services → Library**: enable **Maps Static API**. A billing account must be linked to the project. One TV stays well inside the monthly free usage.
+2. **APIs & Services → Credentials → Create credentials → API key**. Under **API restrictions**, allow only **Maps Static API**. No website restriction is needed, because only the server uses the key.
+3. In Vercel, set `GOOGLE_MAPS_API_KEY` and redeploy.
+
+To rotate the key, create a new one, update the variable, redeploy, then delete the old key.
 
 ## Map positions
 

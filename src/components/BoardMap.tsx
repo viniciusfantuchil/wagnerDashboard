@@ -1,6 +1,7 @@
 // Schematic Brevard County map from the prototype. Kept until the map provider is decided (spec §12).
 
-import type { BoardJob, BoardVisit } from "@/lib/types";
+import { MAP_H, MAP_W, mapImagePath, project } from "@/lib/geo/staticMap";
+import type { Board, BoardJob, BoardVisit } from "@/lib/types";
 import { statusKey } from "./status";
 
 type LatLon = [number, number];
@@ -30,11 +31,11 @@ const MIN_GAP = 26; // px in map units; pins closer than this are fanned out
 const FAN_RADIUS = 24;
 
 /** Map positions, with pins that would overlap (e.g. several jobs at one city center) fanned out around it. */
-export function spread(points: [number, number][]): [number, number][] {
+export function spread(points: [number, number][], minGap = MIN_GAP, fanRadius = FAN_RADIUS): [number, number][] {
   const out: [number, number][] = [];
   const crowd = new Map<number, number>(); // index of the first pin at a spot → pins already fanned around it
   points.forEach(([x, y]) => {
-    const anchor = out.findIndex(([ox, oy]) => Math.hypot(ox - x, oy - y) < MIN_GAP);
+    const anchor = out.findIndex(([ox, oy]) => Math.hypot(ox - x, oy - y) < minGap);
     if (anchor === -1) {
       out.push([x, y]);
       return;
@@ -42,7 +43,7 @@ export function spread(points: [number, number][]): [number, number][] {
     const n = (crowd.get(anchor) ?? 0) + 1;
     crowd.set(anchor, n);
     const angle = (n - 1) * (Math.PI / 3) - Math.PI / 2;
-    const ring = FAN_RADIUS * (1 + Math.floor((n - 1) / 6));
+    const ring = fanRadius * (1 + Math.floor((n - 1) / 6));
     out.push([out[anchor][0] + ring * Math.cos(angle), out[anchor][1] + ring * Math.sin(angle)]);
   });
   return out;
@@ -85,6 +86,51 @@ export function BoardMap({ jobs, visits }: { jobs: BoardJob[]; visits: BoardVisi
         return (
           <g key={j.id} className={`pin s-${statusKey(j.status)}${j.approx ? " approx" : ""}`}>
             <circle cx={x} cy={y} r={15} />
+            <text x={x} y={y}>{j.pin}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/**
+ * Google Maps basemap (served by /api/map) with the board's own pins on top, in the image's projection.
+ * Pins keep the status colors and numbers of the schematic map.
+ */
+export function GoogleBoardMap({ map, jobs, visits }: { map: NonNullable<Board["map"]>; jobs: BoardJob[]; visits: BoardVisit[] }) {
+  const shownVisits = placed(visits);
+  const shownJobs = placed(jobs);
+  const at = spread([...shownVisits, ...shownJobs].map((i) => project(i.lat, i.lon, map)), 16, 15);
+  const [hx, hy] = project(map.office.lat, map.office.lon, map);
+  return (
+    <svg
+      id="map"
+      className="gmap"
+      viewBox={`0 0 ${MAP_W} ${MAP_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label="Map of Brevard County with today's jobs and estimate visits"
+    >
+      <image href={mapImagePath(map)} x={0} y={0} width={MAP_W} height={MAP_H} />
+      <g className="hq">
+        <rect x={hx - 11} y={hy - 7} width={22} height={14} rx={2} />
+        <text x={hx} y={hy}>HQ</text>
+      </g>
+      {shownVisits.map((v, i) => {
+        const [x, y] = at[i];
+        return (
+          <g key={v.id} className={`visit${v.approx ? " approx" : ""}`}>
+            <rect x={x - 8} y={y - 8} width={16} height={16} transform={`rotate(45 ${x} ${y})`} />
+            <text x={x} y={y}>{v.key}</text>
+          </g>
+        );
+      })}
+      {shownJobs.map((j, i) => {
+        const [x, y] = at[shownVisits.length + i];
+        return (
+          <g key={j.id} className={`pin s-${statusKey(j.status)}${j.approx ? " approx" : ""}`}>
+            <circle cx={x} cy={y} r={9.5} />
             <text x={x} y={y}>{j.pin}</text>
           </g>
         );
