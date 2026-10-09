@@ -36,8 +36,9 @@ One line per item, exactly like this (upper or lower case both work):
 ```
 Status: In progress
 Deposit: OK
-Permit: OK
-Material: OK
+Permit: Approved
+Material: Ordered
+Delivery: Job site
 Confirm48: SENT
 Day: 1/2
 Note: Gate code at the side door
@@ -46,14 +47,15 @@ Note: Gate code at the side door
 | Line | Allowed values | Meaning on the board |
 |---|---|---|
 | `Status:` | `Scheduled`, `In progress`, `Issue`, `Done` or `Postponed` | The status chip and pin color. Missing line = Scheduled. `Issue` = red **Stopped** alert, with the `Note:` as the reason. |
-| `Deposit:` | `OK` or `PENDING` | `PENDING` = red **Deposit** alert (D-003). Missing line = "Deposit unknown". |
-| `Permit:` | `OK`, `PENDING` or `N/A` | `PENDING` on the next workday = **Permit** alert. |
-| `Material:` | `OK` or `PENDING` | `PENDING` on the next workday = **Material** alert. |
+| `Deposit:` | `PENDING`, `OK` (50% deposit received) or `FINAL` (final payment received) | `PENDING` = red **Deposit** alert (D-003). Missing line = "Deposit unknown". |
+| `Permit:` | `Requested`, `Approved` or `N/A` | Not approved on the next workday = **Permit** alert ("No approved permit, no start"). |
+| `Material:` | `Ordered` or `Not ordered` | `Not ordered` on the next workday = **Material** alert. Order only after the deposit (D-003). |
+| `Delivery:` | `Job site` or `Showroom` | Where the material is delivered. Shown on the Job Status screen; no alert. |
 | `Confirm48:` | `SENT` or `PENDING` | `PENDING` on the next workday = **Customer** alert (D-007). |
 | `Day:` | `1/2`, `2/2`, `1/3`, ... | Shows "day 1 of 2" on the job card. |
 | `Note:` | any short text | Shown in red on the job card, and as the reason when a job is stopped. |
 
-Only `OK` counts as paid. "Paid", "yes" or "received" are not read as OK, so the board will ask for the event to be fixed.
+Only `OK` and `FINAL` count as paid. "Paid", "yes" or "received" are not read as paid, so the board will ask for the event to be fixed. Older events with `Permit: OK` / `Material: OK` / `PENDING` still work.
 
 ## 4. Colors
 
@@ -73,10 +75,11 @@ Location:    <street>, <city>, FL <zip>
 Description:
 Status: Scheduled
 Deposit: PENDING
-Permit: PENDING
-Material: PENDING
+Permit: Requested
+Material: Not ordered
+Delivery: Job site
 Confirm48: PENDING
 Note:
 ```
 
-Change each `PENDING` to `OK` (or `SENT`) as it happens.
+Update each line as it happens (Deposit `OK`, then `FINAL`; Permit `Approved`; Material `Ordered`; Confirm48 `SENT`), or use the Job Status screen, which writes the same lines.

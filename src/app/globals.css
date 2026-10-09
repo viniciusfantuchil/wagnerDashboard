@@ -216,7 +216,8 @@ footer .src.stale{color:var(--red);font-weight:600}
 .seg button{flex:1 1 auto;min-height:40px;padding:8px 10px;border:1px solid var(--border-strong);border-radius:6px;background:var(--surface);color:var(--ink);font:600 14px var(--display);text-transform:uppercase;letter-spacing:.03em}
 .seg button:disabled{opacity:.55}
 .seg button.on{border-color:transparent;color:#fff;background:var(--navy)}
-.seg button.on.v-ok,.seg button.on.v-sent,.seg button.on.v-n-a,.seg button.on.v-done{background:var(--success)}
+.seg button.on.v-ok,.seg button.on.v-final,.seg button.on.v-approved,.seg button.on.v-ordered,.seg button.on.v-sent,.seg button.on.v-n-a,.seg button.on.v-done{background:var(--success)}
+.seg button.on.v-requested,.seg button.on.v-not-ordered{background:var(--warning)}
 .seg button.on.v-pending,.seg button.on.v-issue{background:var(--red)}
 .seg button.on.v-in-progress{background:var(--warning)}
 .seg button.on.v-postponed{background:var(--ink-muted)}
@@ -224,8 +225,8 @@ footer .src.stale{color:var(--red);font-weight:600}
 .cjob-check{display:grid;grid-template-columns:92px 1fr;align-items:center;gap:8px}
 .cjob-check>span{font:600 13px var(--display);text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted)}
 .cjob-check .seg button{min-height:36px;padding:6px 8px}
-.cjob-note{display:flex;gap:8px}
-.cjob-note input{flex:1;min-width:0;min-height:40px;padding:8px 10px;border:1px solid var(--border-strong);border-radius:6px;font:16px var(--body);background:var(--surface);color:var(--ink)}
+.cjob-note{display:flex;gap:8px;align-items:flex-end}
+.cjob-note textarea{flex:1;min-width:0;min-height:64px;resize:vertical;line-height:1.35;padding:8px 10px;border:1px solid var(--border-strong);border-radius:6px;font:16px var(--body);background:var(--surface);color:var(--ink)}
 .cjob-note button{padding:8px 12px;border:0;border-radius:6px;background:var(--navy);color:#fff;font:600 14px var(--display);text-transform:uppercase}
 .cjob-note button:disabled{opacity:.4}
 .cjob-warn{margin:0;font-size:13px;color:var(--warning)}
@@ -283,7 +284,11 @@ footer .src.stale{color:var(--red);font-weight:600}
 .cjob-name{font-size:19px;font-weight:700;color:var(--ink)}
 .cjob-name small{font-weight:400;color:var(--ink-muted);font-size:1em}
 .cjob-sum .cjob-what{margin:0}
-.cjob-notetext{font-size:14px;color:var(--red);font-weight:600}
+.cjob-notebox{display:block;margin-top:2px;padding:8px 10px;border-left:4px solid var(--warning);border-radius:6px;background:var(--warning-tint);color:var(--ink);font-size:16px;line-height:1.35;white-space:pre-wrap;overflow-wrap:anywhere}
+.cjob-notebox b{display:block;margin-bottom:2px;font:700 12px var(--display);text-transform:uppercase;letter-spacing:.06em;color:var(--warning)}
+.cjob-notebox.issue{border-left-color:var(--red);background:var(--red-tint)}
+.cjob-notebox.issue b{color:var(--red)}
+.cjob-updated{margin:0;font-size:13px;color:var(--ink-muted)}
 .cjob-chev{position:absolute;right:0;bottom:0;color:var(--ink-muted);font-size:16px}
 .cjob-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
 .chip{display:inline-flex;align-items:center;min-height:28px;padding:3px 10px;border-radius:999px;border:1px solid transparent;font:600 13px var(--display);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}

@@ -19,7 +19,8 @@ export interface SearchQuery {
   needs?: Need;
 }
 
-const DONE = new Set(["OK", "SENT", "N/A"]);
+/** Readiness values that need nothing more. */
+const DONE = new Set(["OK", "FINAL", "APPROVED", "N/A", "ORDERED", "SENT"]);
 
 export class SearchError extends Error {}
 

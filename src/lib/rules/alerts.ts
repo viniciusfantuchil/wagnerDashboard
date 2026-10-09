@@ -119,14 +119,20 @@ export function buildAlerts({ today, nextWorkday, hourly }: AlertInput): Alert[]
   // Permit / Material for the next workday.
   for (const job of nextWorkday.jobs) {
     if (job.permit === "missing") {
-      add(job, { severity: "warning", label: "Permit", title: `${nextName(job)}: permit pending`, text: "No approved permit, no start." });
+      const requested = job.lines?.Permit === "REQUESTED";
+      add(job, {
+        severity: "warning",
+        label: "Permit",
+        title: `${nextName(job)}: ${requested ? "permit requested, not approved" : "permit pending"}`,
+        text: "No approved permit, no start.",
+      });
     }
     if (job.material === "missing") {
       add(job, {
         severity: "warning",
         label: "Material",
-        title: `${nextName(job)}: material not confirmed`,
-        text: "Confirm the delivery before the crew goes out.",
+        title: `${nextName(job)}: material not ordered`,
+        text: "Order it before the crew goes out, only after the deposit (D-003).",
       });
     }
   }

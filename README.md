@@ -65,10 +65,10 @@ Job and visit addresses are placed on the map on the server, with the free **US 
 | Role | Can change |
 |---|---|
 | Admin | Everything an office user can, plus adding, changing and removing users at `/control/users` |
-| Office | Status, Deposit, Permit, Material, 48-hour confirmation and Note, on every crew's jobs |
+| Office | Status, Deposit (50% deposit or final payment), Permit (requested / approved / N/A), Material (ordered or not), Delivery (job site / showroom), 48-hour confirmation and Note, on every crew's jobs |
 | Crew lead | Status and Note, on their own crew's jobs |
 
-**Cards.** Each job is a short card: crew, time, customer and city, service, and chips for status and (office) Deposit, Permit, Material and 48-h confirmation. A chip always says its state in words (`Deposit ✓`, `Deposit ?`, `Deposit pending`); an unknown deposit is never shown as OK (D-003). One button does the usual next step (**Start**, **Done** or **Resume**); **Issue** asks why, with one-tap reasons, and saves the status and note together. Tapping the card opens the full editor. After every save a message offers **Undo** for a few seconds.
+**Cards.** Each job is a short card: crew and its lead (`Crew 4 · Jhonny`), time, customer and city, service, and chips for status and (office) Deposit, Permit, Material and 48-h confirmation. A chip always says its state in words (`Deposit 50% ✓`, `Final payment ✓`, `Deposit ?`, `Permit requested`, `Material not ordered`, `To showroom`); an unknown deposit is never shown as OK (D-003). The note sits in its own box (red, "Stopped", when the job has an issue), and the editor shows who changed the job last. One button does the usual next step (**Start**, **Done** or **Resume**); **Issue** asks why, with one-tap reasons, and saves the status and note together. Tapping the card opens the full editor. After every save a message offers **Undo** for a few seconds.
 
 **Needs attention.** Above the cards, one chip per open item for today and the next workday, like the TV alerts: stopped jobs, deposit pending (or unknown), and for the next workday 48-h confirmation, material and permit pending. Crew leads see only stopped jobs. Tapping a chip shows just those jobs.
 

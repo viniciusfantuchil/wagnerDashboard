@@ -29,21 +29,31 @@ export type Tone = "ok" | "warn" | "bad" | "muted";
 /** The compact card's readiness chips: always a word or symbol next to the color, never color alone. */
 export function readinessChips(job: ControlJob): { field: string; label: string; tone: Tone }[] {
   const v = job.values;
-  const chip = (field: string, name: string, value: string | undefined, done: string, pendingTone: Tone) =>
-    value === done
-      ? { field, label: `${name} ✓`, tone: "ok" as Tone }
-      : value === "N/A"
-        ? { field, label: `${name} N/A`, tone: "muted" as Tone }
-        : value === "PENDING"
-          ? { field, label: `${name} pending`, tone: pendingTone }
-          : { field, label: `${name} ?`, tone: "warn" as Tone };
-  return [
-    // D-003: a deposit that is not written down is never OK.
-    chip("Deposit", "Deposit", v.Deposit, "OK", "bad"),
-    chip("Permit", "Permit", v.Permit, "OK", "warn"),
-    chip("Material", "Material", v.Material, "OK", "warn"),
-    chip("Confirm48", "48h", v.Confirm48, "SENT", "warn"),
-  ];
+  const chips: { field: string; label: string; tone: Tone }[] = [];
+  const add = (field: string, label: string, tone: Tone) => chips.push({ field, label, tone });
+
+  // D-003: a deposit that is not written down is never OK.
+  if (v.Deposit === "FINAL") add("Deposit", "Final payment ✓", "ok");
+  else if (v.Deposit === "OK") add("Deposit", "Deposit 50% ✓", "ok");
+  else if (v.Deposit === "PENDING") add("Deposit", "Deposit pending", "bad");
+  else add("Deposit", "Deposit ?", "warn");
+
+  if (v.Permit === "APPROVED") add("Permit", "Permit ✓", "ok");
+  else if (v.Permit === "N/A") add("Permit", "Permit N/A", "muted");
+  else if (v.Permit === "REQUESTED") add("Permit", "Permit requested", "warn");
+  else if (v.Permit === "PENDING") add("Permit", "Permit pending", "warn");
+  else add("Permit", "Permit ?", "warn");
+
+  if (v.Material === "ORDERED") add("Material", "Material ordered", "ok");
+  else if (v.Material === "NOT ORDERED") add("Material", "Material not ordered", "warn");
+  else add("Material", "Material ?", "warn");
+
+  if (v.Delivery) add("Delivery", v.Delivery === "SHOWROOM" ? "To showroom" : "To job site", "muted");
+
+  if (v.Confirm48 === "SENT") add("Confirm48", "48h ✓", "ok");
+  else if (v.Confirm48 === "PENDING") add("Confirm48", "48h pending", "warn");
+  else add("Confirm48", "48h ?", "warn");
+  return chips;
 }
 
 export const statusTone = (status: string | undefined): string =>
@@ -60,13 +70,13 @@ export function attentionMatch(key: AttentionKey, job: ControlJob, next: boolean
     case "stopped":
       return job.values.Status === "Issue";
     case "deposit":
-      return open(job) && job.values.Deposit !== "OK"; // pending or unknown (D-003)
+      return open(job) && job.values.Deposit !== "OK" && job.values.Deposit !== "FINAL"; // pending or unknown (D-003)
     case "confirm48":
       return next && open(job) && job.values.Confirm48 !== "SENT"; // D-007
     case "material":
-      return next && open(job) && job.values.Material !== "OK";
+      return next && open(job) && job.values.Material !== "ORDERED";
     case "permit":
-      return next && open(job) && job.values.Permit === "PENDING";
+      return next && open(job) && (job.values.Permit === "PENDING" || job.values.Permit === "REQUESTED"); // not approved yet
   }
 }
 
@@ -74,8 +84,8 @@ export const ATTENTION: { key: AttentionKey; label: (n: number) => string; tone:
   { key: "stopped", label: (n) => `${n} stopped`, tone: "bad", office: false },
   { key: "deposit", label: (n) => `${n} deposit pending`, tone: "bad", office: true },
   { key: "confirm48", label: (n) => `${n} not confirmed (48 h)`, tone: "warn", office: true },
-  { key: "material", label: (n) => `${n} material pending`, tone: "warn", office: true },
-  { key: "permit", label: (n) => `${n} permit pending`, tone: "warn", office: true },
+  { key: "material", label: (n) => `${n} material not ordered`, tone: "warn", office: true },
+  { key: "permit", label: (n) => `${n} permit not approved`, tone: "warn", office: true },
 ];
 
 /** Counts per item over today (first day) and the next workday; crew leads get only "stopped". */

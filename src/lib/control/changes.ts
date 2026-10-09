@@ -2,18 +2,34 @@
 // description lines change ("Status:", "Deposit:", …); the title, time, address and other lines stay as they are.
 
 import { descriptionLines } from "@/lib/parse/event";
-import type { Check, Status } from "@/lib/types";
+import type { Check, ReadinessLine, Status } from "@/lib/types";
 import type { ControlUser } from "./users";
 
 /** Description line label → values the screen offers, as written in the event (docs/CALENDAR-GUIDE.md). */
 export const FIELDS = {
   Status: ["Scheduled", "In progress", "Issue", "Done", "Postponed"],
-  Deposit: ["OK", "PENDING"],
-  Permit: ["OK", "PENDING", "N/A"],
-  Material: ["OK", "PENDING"],
-  Confirm48: ["SENT", "PENDING"],
+  Deposit: ["PENDING", "OK", "FINAL"], // OK = 50% deposit received (D-003); FINAL = final payment received
+  Permit: ["REQUESTED", "APPROVED", "N/A"],
+  Material: ["NOT ORDERED", "ORDERED"],
+  Delivery: ["JOB SITE", "SHOWROOM"], // where the material goes
+  Confirm48: ["PENDING", "SENT"],
   Note: null, // free text
 } as const;
+
+/** Button and chip wording for the values above (the event keeps the values). */
+export const VALUE_LABEL: Record<string, string> = {
+  PENDING: "Pending",
+  OK: "50% deposit",
+  FINAL: "Final payment",
+  REQUESTED: "Requested",
+  APPROVED: "Approved",
+  "N/A": "N/A",
+  "NOT ORDERED": "Not ordered",
+  ORDERED: "Ordered",
+  "JOB SITE": "Job site",
+  SHOWROOM: "Showroom",
+  SENT: "Sent",
+};
 
 export type Field = keyof typeof FIELDS;
 export type Changes = Partial<Record<Field, string>>;
@@ -69,14 +85,18 @@ export function currentValues(job: {
   material: Check;
   confirm48: Check;
   note?: string;
+  lines?: Partial<Record<ReadinessLine, string>>;
 }): Partial<Record<Field, string>> {
-  const check = (c: Check, ok: string) => (c === "ok" ? ok : c === "missing" ? "PENDING" : undefined);
+  // Events read by the parser carry the exact lines; other sources only have the checks.
+  const check = (c: Check, ok: string, missing: string) => (c === "ok" ? ok : c === "missing" ? missing : undefined);
+  const l = job.lines ?? {};
   return {
     Status: STATUS_LABEL[job.status],
-    Deposit: check(job.deposit, "OK"),
-    Permit: check(job.permit, "OK"),
-    Material: check(job.material, "OK"),
-    Confirm48: check(job.confirm48, "SENT"),
+    Deposit: l.Deposit ?? check(job.deposit, "OK", "PENDING"),
+    Permit: l.Permit ?? check(job.permit, "APPROVED", "PENDING"),
+    Material: l.Material ?? check(job.material, "ORDERED", "NOT ORDERED"),
+    Delivery: l.Delivery,
+    Confirm48: l.Confirm48 ?? check(job.confirm48, "SENT", "PENDING"),
     Note: job.note ?? "",
   };
 }

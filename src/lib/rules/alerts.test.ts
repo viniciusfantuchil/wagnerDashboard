@@ -189,10 +189,10 @@ describe("Permit / Material", () => {
     ]);
   });
 
-  it("flags a next-workday job with material not confirmed", () => {
+  it("flags a next-workday job with material not ordered", () => {
     const j = job({ date: NEXT, customer: "Lindqvist", material: "missing" });
     const [a] = alerts({ nextWorkday: { date: NEXT, jobs: [j] } });
-    expect(a).toMatchObject({ severity: "warning", label: "Material", title: "Mon · Lindqvist: material not confirmed" });
+    expect(a).toMatchObject({ severity: "warning", label: "Material", title: "Mon · Lindqvist: material not ordered" });
   });
 
   it("raises both when both are missing", () => {
